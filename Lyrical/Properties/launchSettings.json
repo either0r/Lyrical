@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "Lyrical (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "Lyrical (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}
