@@ -33,6 +33,8 @@ public static class SongStorageService
             var content = await FileIO.ReadTextAsync(file);
             var song = CreateSongFromChordPro(content);
             song.FileName = file.Name;
+            var properties = await file.GetBasicPropertiesAsync();
+            song.LastModified = properties.DateModified;
             songs.Add(song);
         }
 
@@ -58,6 +60,8 @@ public static class SongStorageService
         var file = await folder.CreateFileAsync(fileName, CreationCollisionOption.ReplaceExisting);
         await FileIO.WriteTextAsync(file, song.ChordPro);
         song.FileName = file.Name;
+        var properties = await file.GetBasicPropertiesAsync();
+        song.LastModified = properties.DateModified;
         return true;
     }
 

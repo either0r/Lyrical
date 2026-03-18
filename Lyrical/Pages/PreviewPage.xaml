@@ -17,19 +17,50 @@
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
-            <Button x:Name="BackButton" Content="Back" Click="BackButton_Click" />
-            <Button Grid.Column="1" Content="Close Preview" Click="CloseButton_Click" />
+            <StackPanel Orientation="Horizontal" Spacing="8" Grid.Column="0">
+                <Button x:Name="BackButton" Content="Back" Click="BackButton_Click" />
+                <Button Content="Close Preview" Click="CloseButton_Click" /> <!-- Grid.Column="1" -->
+
+                <StackPanel
+                    x:Name="AutoScrollControlsPanel"
+                    Grid.Column="1"
+                    Orientation="Horizontal"
+                    Spacing="8"
+                    Margin="350,0,0,0"
+                    Visibility="Collapsed">
+                    <Button x:Name="AutoScrollButton" Content="Start Auto-scroll" Click="AutoScrollButton_Click" />
+                    <Slider
+                        x:Name="AutoScrollSpeedSlider"
+                        Width="140"
+                        Minimum="0.5"
+                        Maximum="2"
+                        StepFrequency="0.5"
+                        Value="1"
+                        ValueChanged="AutoScrollSpeedSlider_ValueChanged" />
+                        <TextBlock x:Name="AutoScrollSpeedText" VerticalAlignment="Center" Text="1x" />
+                </StackPanel>
+            </StackPanel>
+            
+
             <TextBlock
-                Grid.Column="2"
+                Grid.Column="3"
                 HorizontalAlignment="Right"
                 Text="Preview"
                 Style="{StaticResource SubtitleTextBlockStyle}" />
         </Grid>
 
-        <ScrollViewer Grid.Row="1" Padding="12" BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+        <ScrollViewer
+            x:Name="PreviewScrollViewer"
+            Grid.Row="1"
+            Padding="12"
+            BorderThickness="1"
+            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+            PointerWheelChanged="PreviewScrollViewer_UserScrollDetected"
+            PointerPressed="PreviewScrollViewer_UserScrollDetected">
             <Grid x:Name="PreviewContentGrid" RowSpacing="10">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
@@ -37,7 +68,7 @@
                 </Grid.RowDefinitions>
 
                 <ScrollViewer x:Name="ChordDiagramScrollViewer" HorizontalScrollMode="Enabled" HorizontalScrollBarVisibility="Auto" VerticalScrollMode="Disabled" VerticalScrollBarVisibility="Disabled">
-                    <StackPanel x:Name="ChordDiagramPanel" Orientation="Horizontal" Spacing="10" VerticalAlignment="Bottom" />
+                    <StackPanel x:Name="ChordDiagramPanel" Orientation="Horizontal" Spacing="10" />
                 </ScrollViewer>
 
                 <RichTextBlock x:Name="PreviewRichTextBlock" Grid.Row="1" />

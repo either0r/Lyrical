@@ -49,10 +49,12 @@
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
                             </Grid.RowDefinitions>
 
                             <TextBlock Text="{x:Bind Title}" Style="{StaticResource BodyStrongTextBlockStyle}" />
                             <TextBlock Grid.Row="1" Text="{x:Bind Artist}" Opacity="0.7" />
+                            <TextBlock Grid.Row="2" Text="{x:Bind LastModifiedText}" Opacity="0.6" />
                         </Grid>
 
                         <Button

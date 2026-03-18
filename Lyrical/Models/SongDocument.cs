@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
@@ -12,6 +13,7 @@ public class SongDocument : INotifyPropertyChanged
     private string _chordPro = "{title: Untitled}\n{artist: }\n\n[Am]Write your [F]first line [C]here";
     private ChordDiagramPlacement _chordDiagramPlacement = ChordDiagramPlacement.Bottom;
     private string? _fileName;
+    private DateTimeOffset _lastModified = DateTimeOffset.Now;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -51,19 +53,34 @@ public class SongDocument : INotifyPropertyChanged
         set => SetProperty(ref _fileName, value);
     }
 
+    public DateTimeOffset LastModified
+    {
+        get => _lastModified;
+        set
+        {
+            if (SetProperty(ref _lastModified, value))
+            {
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(LastModifiedText)));
+            }
+        }
+    }
+
+    public string LastModifiedText => LastModified.LocalDateTime.ToString("M/dd/yyyy h:mm tt");
+
     public static SongDocument CreateNew()
     {
         return new SongDocument();
     }
 
-    private void SetProperty<T>(ref T storage, T value, [CallerMemberName] string? propertyName = null)
+    private bool SetProperty<T>(ref T storage, T value, [CallerMemberName] string? propertyName = null)
     {
         if (EqualityComparer<T>.Default.Equals(storage, value))
         {
-            return;
+            return false;
         }
 
         storage = value;
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        return true;
     }
 }
