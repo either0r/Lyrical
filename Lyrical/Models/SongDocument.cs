@@ -10,7 +10,7 @@ public class SongDocument : INotifyPropertyChanged
     private string _title = "Untitled";
     private string _artist = "";
     private string _key = "C";
-    private string _chordPro = "{title: Untitled}\n{artist: }\n\n[Am]Write your [F]first line [C]here";
+    private string _chordPro = "";
     private ChordDiagramPlacement _chordDiagramPlacement = ChordDiagramPlacement.Bottom;
     private string? _fileName;
     private DateTimeOffset _lastModified = DateTimeOffset.Now;
@@ -67,9 +67,13 @@ public class SongDocument : INotifyPropertyChanged
 
     public string LastModifiedText => LastModified.LocalDateTime.ToString("M/dd/yyyy h:mm tt");
 
-    public static SongDocument CreateNew()
+    public static SongDocument CreateNew(string title = "Untitled")
     {
-        return new SongDocument();
+        return new SongDocument
+        {
+            Title = title,
+            ChordPro = $"{{title: {title}}}\n"
+        };
     }
 
     private bool SetProperty<T>(ref T storage, T value, [CallerMemberName] string? propertyName = null)

@@ -1,5 +1,6 @@
 using Lyrical.Models;
 using Lyrical.Pages;
+using Lyrical.Services;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -28,6 +29,12 @@ public sealed class PreviewWindow : Window
 
         var frame = new Frame();
         Content = frame;
+
+        if (Content is FrameworkElement root)
+        {
+            root.RequestedTheme = ThemeService.Current;
+        }
+
         frame.Navigate(typeof(PreviewPage), new PreviewNavigationContext
         {
             Song = song,
@@ -35,8 +42,17 @@ public sealed class PreviewWindow : Window
             CloseAction = Close
         });
 
+        ThemeService.ThemeChanged += OnThemeChanged;
         Activated += PreviewWindow_Activated;
         Closed += PreviewWindow_Closed;
+    }
+
+    private void OnThemeChanged(ElementTheme theme)
+    {
+        if (Content is FrameworkElement root)
+        {
+            root.RequestedTheme = theme;
+        }
     }
 
     private void PreviewWindow_Activated(object sender, WindowActivatedEventArgs args)
@@ -66,6 +82,8 @@ public sealed class PreviewWindow : Window
 
     private void PreviewWindow_Closed(object sender, WindowEventArgs args)
     {
+        ThemeService.ThemeChanged -= OnThemeChanged;
+
         var appWindow = GetAppWindow(this);
         if (appWindow is null)
         {

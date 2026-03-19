@@ -19,34 +19,45 @@
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
-            <StackPanel Orientation="Horizontal" Spacing="8">
-                <AppBarButton Icon="Save" Label="Save" IsCompact="True" Click="SaveSongButton_Click" HorizontalAlignment="Left">
-                    <AppBarButton.KeyboardAccelerators>
-                        <KeyboardAccelerator Modifiers="Control" Key="S"/>
-                    </AppBarButton.KeyboardAccelerators>
-                </AppBarButton>
-                <AppBarButton Icon="Add" Label="Add" IsCompact="True" HorizontalAlignment="Right">
-                    <AppBarButton.Flyout>
-                        <Flyout Placement="Bottom" x:Name="AddCommandBarFlyout">
-                            <StackPanel>
-                                <AppBarButton Label="Insert MetaData" Click="InsertMetadataButton_Click"/>
-                                <AppBarButton Label="Insert Chorus" Click="InsertChorusBlockButton_Click" />
-                            </StackPanel>
-                        </Flyout>
-                    </AppBarButton.Flyout>
-                </AppBarButton>
-               <!-- <DropDownButton Content="Add" HorizontalAlignment="Right" VerticalAlignment="Center">
-                    <DropDownButton.Flyout>
-                        <MenuFlyout Placement="Bottom">
-                            <MenuFlyoutItem Text="Insert MetaData" Click="InsertMetadataButton_Click"/>
-                            <MenuFlyoutItem Text="Insert Chorus" Click="InsertChorusBlockButton_Click"/>
-                        </MenuFlyout>
-                    </DropDownButton.Flyout>
-                </DropDownButton> -->
-       
-                <!--<Button Content="Insert Meta Data" Click="InsertMetadataButton_Click" HorizontalAlignment="Right"/>
-                <Button Content="Insert Chorus Block" Click="InsertChorusBlockButton_Click" HorizontalAlignment="Right"/> -->
-            </StackPanel>
+            <Grid ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="0">
+                    <AppBarButton Icon="Save" Label="Save" IsCompact="True" Click="SaveSongButton_Click" Margin="0,0,0,0">
+                        <AppBarButton.KeyboardAccelerators>
+                            <KeyboardAccelerator Modifiers="Control" Key="S"/>
+                        </AppBarButton.KeyboardAccelerators>
+                    </AppBarButton>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                    <AppBarButton Icon="Add" Label="Add" IsCompact="True">
+                        <AppBarButton.Flyout>
+                            <Flyout Placement="Bottom" x:Name="AddCommandBarFlyout">
+                                <StackPanel>
+                                    <AppBarButton Label="Insert MetaData" Click="InsertMetadataButton_Click" />
+                                    <AppBarButton Label="Insert Chorus" Click="InsertChorusBlockButton_Click" />
+                                </StackPanel>
+                            </Flyout>
+                        </AppBarButton.Flyout>
+                    </AppBarButton>
+                </StackPanel>
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                    <Button>
+                        <FontIcon Glyph="&#xE897;"/>
+                        <Button.Flyout>
+                            <Flyout Placement="Bottom" x:Name="HelpCommandFlyout">
+                                <StackPanel>
+                                    <TextBlock Text="Help Temp" Style="{ThemeResource BaseTextBlockStyle}" />
+                                </StackPanel>
+                            </Flyout>
+                        </Button.Flyout>
+                    </Button>
+                </StackPanel>
+            </Grid>
 
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" VerticalAlignment="Center">
                 <ComboBox x:Name="DiagramPlacementComboBox" Width="180" SelectionChanged="DiagramPlacementComboBox_SelectionChanged" Padding="6,0,0,0">

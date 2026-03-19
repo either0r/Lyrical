@@ -119,6 +119,13 @@ public static class ChordDiagramRenderer
     private static (string Frets, int BaseFret)? ResolveDefinition(string chord)
     {
         var normalized = chord.Trim();
+
+        // User-defined chords take priority over built-ins
+        if (CustomChordService.TryGetFretData(normalized, out var customFrets, out var customBase))
+        {
+            return (customFrets, customBase);
+        }
+
         if (KnownChords.TryGetValue(normalized, out var value))
         {
             return value;
@@ -128,6 +135,12 @@ public static class ChordDiagramRenderer
         if (slashIndex > 0)
         {
             var withoutBass = normalized[..slashIndex];
+
+            if (CustomChordService.TryGetFretData(withoutBass, out customFrets, out customBase))
+            {
+                return (customFrets, customBase);
+            }
+
             if (KnownChords.TryGetValue(withoutBass, out value))
             {
                 return value;

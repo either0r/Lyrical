@@ -23,6 +23,9 @@
             <NavigationViewItem Content="Songs" Icon="Library" Tag="songs" />
             <NavigationViewItem Content="New Song" Icon="Add" Tag="new-song" />
         </NavigationView.MenuItems>
+        <NavigationView.FooterMenuItems>
+            <NavigationViewItem Content="Settings" Icon="Setting" Tag="settings" />
+        </NavigationView.FooterMenuItems>
 
         <Frame x:Name="RootFrame" />
     </NavigationView>

@@ -38,9 +38,15 @@ public sealed partial class SongListPage : Page
         }
     }
 
-    private void NewSongButton_Click(object sender, RoutedEventArgs e)
+    private async void NewSongButton_Click(object sender, RoutedEventArgs e)
     {
-        Frame.Navigate(typeof(SongEditorPage), SongDocument.CreateNew());
+        var title = await NewSongDialog.PromptAsync(XamlRoot);
+        if (title is null)
+        {
+            return;
+        }
+
+        Frame.Navigate(typeof(SongEditorPage), SongDocument.CreateNew(title));
     }
 
     private async void DeleteSongButton_Click(object sender, RoutedEventArgs e)
