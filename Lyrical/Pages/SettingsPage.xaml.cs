@@ -14,6 +14,7 @@ public sealed partial class SettingsPage : Page
 
     private CustomChordDefinition? _editingChord;
     private bool _themeSelectionReady;
+    private bool _autoSaveSelectionReady;
 
     public SettingsPage()
     {
@@ -24,6 +25,7 @@ public sealed partial class SettingsPage : Page
     {
         base.OnNavigatedTo(e);
         LoadThemeSelection();
+        LoadAutoSaveSettings();
         RefreshList();
     }
 
@@ -57,6 +59,65 @@ public sealed partial class SettingsPage : Page
         {
             ThemeService.Apply(theme);
         }
+    }
+
+    // ── Editor auto-save ──────────────────────────────────────────────────────
+
+    private void LoadAutoSaveSettings()
+    {
+        _autoSaveSelectionReady = false;
+
+        AutoSaveModeComboBox.SelectedIndex = EditorSettingsService.AutoSaveMode switch
+        {
+            AutoSaveMode.OnFocusChange => 1,
+            AutoSaveMode.AfterDelay => 2,
+            _ => 0
+        };
+
+        AutoSaveDelayNumberBox.Value = EditorSettingsService.AutoSaveDelaySeconds;
+        UpdateAutoSaveDelayEnabledState();
+
+        _autoSaveSelectionReady = true;
+    }
+
+    private void AutoSaveModeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!_autoSaveSelectionReady)
+        {
+            return;
+        }
+
+        EditorSettingsService.AutoSaveMode = AutoSaveModeComboBox.SelectedIndex switch
+        {
+            1 => AutoSaveMode.OnFocusChange,
+            2 => AutoSaveMode.AfterDelay,
+            _ => AutoSaveMode.Off
+        };
+
+        UpdateAutoSaveDelayEnabledState();
+    }
+
+    private void AutoSaveDelayNumberBox_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
+    {
+        if (!_autoSaveSelectionReady)
+        {
+            return;
+        }
+
+        if (double.IsNaN(sender.Value))
+        {
+            sender.Value = EditorSettingsService.AutoSaveDelaySeconds;
+            return;
+        }
+
+        var delay = (int)System.Math.Round(sender.Value);
+        EditorSettingsService.AutoSaveDelaySeconds = delay;
+        sender.Value = EditorSettingsService.AutoSaveDelaySeconds;
+    }
+
+    private void UpdateAutoSaveDelayEnabledState()
+    {
+        AutoSaveDelayNumberBox.IsEnabled = AutoSaveModeComboBox.SelectedIndex == 2;
     }
 
     // ── Edit mode helpers ─────────────────────────────────────────────────────

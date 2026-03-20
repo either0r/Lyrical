@@ -484,15 +484,15 @@ public static partial class ChordProRenderer
                 paragraph.Inlines.Add(CreateMonospaceRun(chordText[current..token.Position], Colors.Orange, FontWeights.Bold));
             }
 
-            var span = new Span();
-            span.Inlines.Add(CreateMonospaceRun(token.Text, token.IsAnnotation ? Colors.CornflowerBlue : Colors.Orange, token.IsAnnotation ? FontWeights.Normal : FontWeights.Bold));
-
-            if (!token.IsAnnotation)
+            if (token.IsAnnotation)
             {
-                ToolTipService.SetToolTip(span, ChordDiagramRenderer.CreateDiagramCard(token.Text));
+                paragraph.Inlines.Add(CreateMonospaceRun(token.Text, Colors.CornflowerBlue, FontWeights.Normal));
+            }
+            else
+            {
+                paragraph.Inlines.Add(CreateChordTokenInline(token.Text));
             }
 
-            paragraph.Inlines.Add(span);
             current = token.Position + token.Text.Length;
         }
 
@@ -500,6 +500,24 @@ public static partial class ChordProRenderer
         {
             paragraph.Inlines.Add(CreateMonospaceRun(chordText[current..], Colors.Orange, FontWeights.Bold));
         }
+    }
+
+    private static InlineUIContainer CreateChordTokenInline(string chord)
+    {
+        var textBlock = new TextBlock
+        {
+            Text = chord,
+            FontFamily = new FontFamily(MonospaceFont),
+            Foreground = new SolidColorBrush(Colors.Orange),
+            FontWeight = FontWeights.Bold
+        };
+
+        ToolTipService.SetToolTip(textBlock, ChordDiagramRenderer.CreateDiagramCard(chord));
+
+        return new InlineUIContainer
+        {
+            Child = textBlock
+        };
     }
 
     private static Run CreateMonospaceRun(string text, Windows.UI.Color color, Windows.UI.Text.FontWeight weight)

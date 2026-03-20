@@ -50,7 +50,7 @@
                 Grid.Column="3"
                 HorizontalAlignment="Right"
                 Text="Preview"
-                Style="{StaticResource SubtitleTextBlockStyle}" />
+                Style="{StaticResource TitleTextBlockStyle}" />
         </Grid>
 
         <ScrollViewer
@@ -59,6 +59,7 @@
             Padding="12"
             BorderThickness="1"
             BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+            Background="{ThemeResource CardBackgroundFillColorSecondary}"
             PointerWheelChanged="PreviewScrollViewer_UserScrollDetected"
             PointerPressed="PreviewScrollViewer_UserScrollDetected">
             <Grid x:Name="PreviewContentGrid" RowSpacing="10">

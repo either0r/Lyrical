@@ -49,20 +49,18 @@ public static class SongStorageService
             return false;
         }
 
-        ApplyMetadataFromChordPro(song);
+        return await SaveSongToFolderAsync(song, folder);
+    }
 
-        var fileName = song.FileName;
-        if (string.IsNullOrWhiteSpace(fileName))
+    public static async Task<bool> SaveSongSilentlyAsync(SongDocument song)
+    {
+        var folder = await TryGetStoredFolderAsync();
+        if (folder is null)
         {
-            fileName = BuildFileName(song.Title);
+            return false;
         }
 
-        var file = await folder.CreateFileAsync(fileName, CreationCollisionOption.ReplaceExisting);
-        await FileIO.WriteTextAsync(file, song.ChordPro);
-        song.FileName = file.Name;
-        var properties = await file.GetBasicPropertiesAsync();
-        song.LastModified = properties.DateModified;
-        return true;
+        return await SaveSongToFolderAsync(song, folder);
     }
 
     public static async Task<bool> DeleteSongAsync(SongDocument song)
@@ -85,6 +83,32 @@ public static class SongStorageService
         }
 
         await file.DeleteAsync(StorageDeleteOption.PermanentDelete);
+        return true;
+    }
+
+    private static async Task<bool> SaveSongToFolderAsync(SongDocument song, StorageFolder folder)
+    {
+        ApplyMetadataFromChordPro(song);
+
+        var previousFileName = song.FileName;
+        var targetFileName = BuildFileName(song.Title);
+
+        var file = await folder.CreateFileAsync(targetFileName, CreationCollisionOption.ReplaceExisting);
+        await FileIO.WriteTextAsync(file, song.ChordPro);
+        song.FileName = file.Name;
+
+        if (!string.IsNullOrWhiteSpace(previousFileName)
+            && !string.Equals(previousFileName, targetFileName, StringComparison.OrdinalIgnoreCase))
+        {
+            var previousItem = await folder.TryGetItemAsync(previousFileName);
+            if (previousItem is StorageFile previousFile)
+            {
+                await previousFile.DeleteAsync(StorageDeleteOption.PermanentDelete);
+            }
+        }
+
+        var properties = await file.GetBasicPropertiesAsync();
+        song.LastModified = properties.DateModified;
         return true;
     }
 

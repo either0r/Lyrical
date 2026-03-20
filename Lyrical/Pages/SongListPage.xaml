@@ -17,15 +17,24 @@
         <Grid ColumnSpacing="12">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
+            
             <TextBlock
-                Text="Songs"
+                Grid.Column="0"
+                Text="My Songs"
                 Style="{StaticResource TitleTextBlockStyle}" />
 
-            <Button
+            <Image
                 Grid.Column="1"
+                Source="/Assets/Images/Logo.svg"
+                Height="48" />
+
+            <Button
+                Grid.Column="2"
+                HorizontalAlignment="Right"
                 Content="New Song"
                 Click="NewSongButton_Click" />
         </Grid>
@@ -53,7 +62,7 @@
                             </Grid.RowDefinitions>
 
                             <TextBlock Text="{x:Bind Title}" Style="{StaticResource BodyStrongTextBlockStyle}" />
-                            <TextBlock Grid.Row="1" Text="{x:Bind Artist}" Opacity="0.7" />
+                            <!-- <TextBlock Grid.Row="1" Text="{x:Bind Artist}" Opacity="0.7" /> -->
                             <TextBlock Grid.Row="2" Text="{x:Bind LastModifiedText}" Opacity="0.6" />
                         </Grid>
 

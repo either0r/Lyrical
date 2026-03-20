@@ -13,9 +13,16 @@ public sealed partial class SongEditorPage : Page
     private SongDocument _song = SongDocument.CreateNew();
     private PreviewWindow? _previewWindow;
 
+    private readonly DispatcherTimer _autoSaveTimer = new();
+    private bool _hasPendingChanges;
+    private bool _isAutoSaving;
+    private bool _isInitializing;
+
     public SongEditorPage()
     {
         InitializeComponent();
+
+        _autoSaveTimer.Tick += AutoSaveTimer_Tick;
     }
 
     protected override void OnNavigatedTo(NavigationEventArgs e)
@@ -27,14 +34,20 @@ public sealed partial class SongEditorPage : Page
             _song = song;
         }
 
+        _isInitializing = true;
         _song.PropertyChanged += Song_PropertyChanged;
         EditorTextBox.Text = _song.ChordPro;
         DiagramPlacementComboBox.SelectedIndex = _song.ChordDiagramPlacement == ChordDiagramPlacement.Top ? 0 : 1;
         RefreshPreview();
+        _isInitializing = false;
+
+        _hasPendingChanges = false;
+        _autoSaveTimer.Stop();
     }
 
     protected override void OnNavigatedFrom(NavigationEventArgs e)
     {
+        _autoSaveTimer.Stop();
         UnsubscribeSong();
         base.OnNavigatedFrom(e);
     }
@@ -44,6 +57,62 @@ public sealed partial class SongEditorPage : Page
         if (_song.ChordPro != EditorTextBox.Text)
         {
             _song.ChordPro = EditorTextBox.Text;
+        }
+
+        if (_isInitializing)
+        {
+            return;
+        }
+
+        _hasPendingChanges = true;
+        if (EditorSettingsService.AutoSaveMode == AutoSaveMode.AfterDelay)
+        {
+            _autoSaveTimer.Interval = TimeSpan.FromSeconds(EditorSettingsService.AutoSaveDelaySeconds);
+            _autoSaveTimer.Stop();
+            _autoSaveTimer.Start();
+        }
+        else
+        {
+            _autoSaveTimer.Stop();
+        }
+    }
+
+    private async void EditorTextBox_LostFocus(object sender, RoutedEventArgs e)
+    {
+        if (EditorSettingsService.AutoSaveMode == AutoSaveMode.OnFocusChange)
+        {
+            await TryAutoSaveAsync();
+        }
+    }
+
+    private async void AutoSaveTimer_Tick(object? sender, object e)
+    {
+        _autoSaveTimer.Stop();
+        if (EditorSettingsService.AutoSaveMode == AutoSaveMode.AfterDelay)
+        {
+            await TryAutoSaveAsync();
+        }
+    }
+
+    private async System.Threading.Tasks.Task TryAutoSaveAsync()
+    {
+        if (_isAutoSaving || !_hasPendingChanges)
+        {
+            return;
+        }
+
+        _isAutoSaving = true;
+        try
+        {
+            var saved = await SongStorageService.SaveSongSilentlyAsync(_song);
+            if (saved)
+            {
+                _hasPendingChanges = false;
+            }
+        }
+        finally
+        {
+            _isAutoSaving = false;
         }
     }
 
@@ -61,17 +130,43 @@ public sealed partial class SongEditorPage : Page
 
     private void InsertChorusBlockButton_Click(object sender, RoutedEventArgs e)
     {
-        InsertAtCursor("\n{soc}\n[C]Chorus line\n{eoc}\n");
+        InsertAtCursor("{soc}\n");
     }
 
     private void InsertMetadataButton_Click(object sender, RoutedEventArgs e)
     {
-        InsertAtCursor("\n{title: Song Title}\n{artist: Artist Name}\n{key: C}\n");
+        InsertAtCursor("{subtitle: }\n");
+    }
+
+    private void InsertVerseBlockButton_Click(object sender, RoutedEventArgs e)
+    {
+        InsertAtCursor("{sov}\n");
+    }
+
+    private void InsertCapoButton_Click(object sender, RoutedEventArgs e)
+    {
+        InsertAtCursor("{capo: }\n");
     }
 
     private void CloseCurrentDocumentButton_Click(object sender, RoutedEventArgs e)
     {
 
+    }
+
+    private void BackButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (Frame?.CanGoBack == true)
+        {
+            Frame.GoBack();
+            return;
+        }
+
+        Frame?.Navigate(typeof(SongListPage));
+    }
+
+    private void SaveButton_Click(object sender, RoutedEventArgs e)
+    {
+        SaveSongButton_Click(sender, e);
     }
 
     private void PopOutPreviewButton_Click(object sender, RoutedEventArgs e)
@@ -159,6 +254,11 @@ public sealed partial class SongEditorPage : Page
     private async void SaveSongButton_Click(object sender, RoutedEventArgs e)
     {
         var saved = await SongStorageService.SaveSongAsync(_song);
+        if (saved)
+        {
+            _hasPendingChanges = false;
+            _autoSaveTimer.Stop();
+        }
 
         var dialog = new ContentDialog
         {
@@ -171,5 +271,16 @@ public sealed partial class SongEditorPage : Page
         };
 
         await dialog.ShowAsync();
+    }
+
+    private void SetHelpTextBlock(object sender, RoutedEventArgs e)
+    {
+        var helpTextButtonFlyout = HelpTextBlock;
+        var text = "Directives\nDirectives should be placed on their own line.\n\rMeta-Data Directives\ntitle, subtitle, artist, album, year, key, tempo, capo.\n{title: Song Title}\n{subtitle: Song Subtitle}\n\nFormatting Directives\n" +
+            "comment, comment_italic\n{comment: some comment here}\n {comment_italic: some comment in italic}\n\nEnvironment Directives\nEnvironment directives always come in pairs, one to start the environment and one to end it.\n" +
+            "start_of_chorus (short: soc), end_of_chorus (short: eoc)\nchorus\n" +
+            "start_of_verse (short: sov), end_of_verse (short: eov)\n" +
+            "start_of_bridge (short: sob) end_of_bridge (short: eob)\n";
+        HelpTextBlock.Text = text;
     }
 }
