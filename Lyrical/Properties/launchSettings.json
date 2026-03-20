@@ -1,7 +1,10 @@
 {
   "profiles": {
     "Lyrical (Package)": {
-      "commandName": "MsixPackage"
+      "commandName": "MsixPackage",
+      "commandLineArgs": "",
+      "doNotLaunchApp": false,
+      "allowLocalNetworkLoopbackProperty": true
     },
     "Lyrical (Unpackaged)": {
       "commandName": "Project"
