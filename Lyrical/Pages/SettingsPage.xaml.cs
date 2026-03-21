@@ -15,17 +15,19 @@ public sealed partial class SettingsPage : Page
     private CustomChordDefinition? _editingChord;
     private bool _themeSelectionReady;
     private bool _autoSaveSelectionReady;
+    private bool _librarySelectionReady;
 
     public SettingsPage()
     {
         InitializeComponent();
     }
 
-    protected override void OnNavigatedTo(NavigationEventArgs e)
+    protected override async void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
         LoadThemeSelection();
         LoadAutoSaveSettings();
+        await LoadLibrarySettingsAsync();
         RefreshList();
     }
 
@@ -58,6 +60,47 @@ public sealed partial class SettingsPage : Page
             && System.Enum.TryParse<ElementTheme>(tag, out var theme))
         {
             ThemeService.Apply(theme);
+        }
+    }
+
+    // ── Song library ───────────────────────────────────────────────────────────
+
+    private async System.Threading.Tasks.Task LoadLibrarySettingsAsync()
+    {
+        _librarySelectionReady = false;
+
+        LibraryModeComboBox.SelectedIndex = SongStorageService.ActiveLibraryMode == SongLibraryMode.Shared ? 1 : 0;
+        LocalFolderText.Text = await SongStorageService.GetLibraryFolderDisplayNameAsync(SongLibraryMode.Local);
+        SharedFolderText.Text = await SongStorageService.GetLibraryFolderDisplayNameAsync(SongLibraryMode.Shared);
+
+        _librarySelectionReady = true;
+    }
+
+    private void LibraryModeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!_librarySelectionReady)
+        {
+            return;
+        }
+
+        SongStorageService.ActiveLibraryMode = LibraryModeComboBox.SelectedIndex == 1
+            ? SongLibraryMode.Shared
+            : SongLibraryMode.Local;
+    }
+
+    private async void ChooseLocalFolderButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (await SongStorageService.ConfigureLibraryFolderAsync(SongLibraryMode.Local))
+        {
+            LocalFolderText.Text = await SongStorageService.GetLibraryFolderDisplayNameAsync(SongLibraryMode.Local);
+        }
+    }
+
+    private async void ChooseSharedFolderButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (await SongStorageService.ConfigureLibraryFolderAsync(SongLibraryMode.Shared))
+        {
+            SharedFolderText.Text = await SongStorageService.GetLibraryFolderDisplayNameAsync(SongLibraryMode.Shared);
         }
     }
 

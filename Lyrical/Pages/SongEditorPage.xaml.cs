@@ -2,6 +2,7 @@ using Lyrical.Models;
 using Lyrical.Services;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Navigation;
 using System;
 using System.ComponentModel;
@@ -17,6 +18,8 @@ public sealed partial class SongEditorPage : Page
     private bool _hasPendingChanges;
     private bool _isAutoSaving;
     private bool _isInitializing;
+
+    private const double MinPaneWidth = 260;
 
     public SongEditorPage()
     {
@@ -128,6 +131,32 @@ public sealed partial class SongEditorPage : Page
         }
     }
 
+    private void EditorPreviewSplitter_DragDelta(object sender, DragDeltaEventArgs e)
+    {
+        var left = EditorTextBox.ActualWidth + e.HorizontalChange;
+        var right = PreviewPaneScrollViewer.ActualWidth - e.HorizontalChange;
+
+        if (left < MinPaneWidth)
+        {
+            left = MinPaneWidth;
+            right = EditorPreviewGrid.ActualWidth - left - 8;
+        }
+
+        if (right < MinPaneWidth)
+        {
+            right = MinPaneWidth;
+            left = EditorPreviewGrid.ActualWidth - right - 8;
+        }
+
+        if (left < MinPaneWidth || right < MinPaneWidth)
+        {
+            return;
+        }
+
+        EditorColumn.Width = new GridLength(left, GridUnitType.Pixel);
+        PreviewColumn.Width = new GridLength(right, GridUnitType.Pixel);
+    }
+
     private void InsertChorusBlockButton_Click(object sender, RoutedEventArgs e)
     {
         InsertAtCursor("{soc}\n");
@@ -146,6 +175,11 @@ public sealed partial class SongEditorPage : Page
     private void InsertCapoButton_Click(object sender, RoutedEventArgs e)
     {
         InsertAtCursor("{capo: }\n");
+    }
+
+    private void InsertTabBlockButton_Click(object sender, RoutedEventArgs e)
+    {
+        InsertAtCursor("e|----------------|\r\nB|----------------|\r\nG|----------------|\r\nD|----------------|\r\nA|----------------|\r\nE|----------------|");
     }
 
     private void CloseCurrentDocumentButton_Click(object sender, RoutedEventArgs e)

@@ -5,6 +5,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:primitives="using:Microsoft.UI.Xaml.Controls.Primitives"
     mc:Ignorable="d">
 
     <Grid Padding="20" RowSpacing="12">
@@ -38,6 +39,16 @@
                     </Button>
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                    <Button Style="{ThemeResource SubtleButtonStyle}">
+                        <FontIcon Glyph="&#xE710;"/>
+                        <Button.Flyout>
+                            <Flyout Placement="Bottom" x:Name="AddCommandBarFlyout" >
+                                <StackPanel Orientation="Vertical" Margin="0,12,0,0">
+                                    <Button Content="Insert Tab" Click="InsertTabBlockButton_Click" Margin="0,0,0,24"/>
+                                </StackPanel>
+                            </Flyout>
+                        </Button.Flyout>
+                    </Button>
                 </StackPanel>
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
                     <Button Click="SetHelpTextBlock" Style="{ThemeResource SubtleButtonStyle}">
@@ -70,14 +81,16 @@
             </StackPanel>
         </Grid>
 
-        <Grid Grid.Row="1" ColumnSpacing="12">
+        <Grid Grid.Row="1" ColumnSpacing="0" x:Name="EditorPreviewGrid">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="*" />
+                <ColumnDefinition x:Name="EditorColumn" Width="*" MinWidth="260" />
+                <ColumnDefinition Width="8" />
+                <ColumnDefinition x:Name="PreviewColumn" Width="*" MinWidth="260" />
             </Grid.ColumnDefinitions>
 
             <TextBox
                 x:Name="EditorTextBox"
+                Grid.Column="0"
                 AcceptsReturn="True"
                 TextWrapping="NoWrap"
                 FontFamily="Consolas"
@@ -87,7 +100,15 @@
                 TextChanged="EditorTextBox_TextChanged"
                 LostFocus="EditorTextBox_LostFocus" />
 
-            <ScrollViewer Grid.Column="1" Padding="12" BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+            <Border Grid.Column="1" Background="{ThemeResource CardStrokeColorDefaultBrush}">
+                <primitives:Thumb
+                    x:Name="EditorPreviewSplitter"
+                    HorizontalAlignment="Stretch"
+                    VerticalAlignment="Stretch"
+                    DragDelta="EditorPreviewSplitter_DragDelta" />
+            </Border>
+
+            <ScrollViewer x:Name="PreviewPaneScrollViewer" Grid.Column="2" Padding="12" BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
                 <Grid x:Name="PreviewContentGrid" RowSpacing="10">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />

@@ -14,6 +14,8 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
@@ -94,9 +96,70 @@
             </StackPanel>
         </Border>
 
-        <!-- Add chord section -->
+        <!-- Song library section -->
         <Border
             Grid.Row="3"
+            BorderBrush="{ThemeResource ControlElevationBorderBrush}"
+            BorderThickness="0,0,0,1">
+            <StackPanel Spacing="8" Margin="0,0,0,24">
+                <TextBlock
+                    Text="Song Library"
+                    Style="{StaticResource SubtitleTextBlockStyle}" />
+                <TextBlock
+                    Text="Choose where songs are saved. Shared works well with a OneDrive shared folder for collaboration."
+                    Opacity="0.7"
+                    TextWrapping="Wrap" />
+
+                <Grid ColumnSpacing="12" RowSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="220" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <ComboBox
+                        x:Name="LibraryModeComboBox"
+                        SelectionChanged="LibraryModeComboBox_SelectionChanged">
+                        <x:String>Local (Private)</x:String>
+                        <x:String>Shared (OneDrive)</x:String>
+                    </ComboBox>
+
+                    <Button
+                        Grid.Column="1"
+                        Content="Choose Local Folder"
+                        Click="ChooseLocalFolderButton_Click" />
+
+                    <TextBlock
+                        x:Name="LocalFolderText"
+                        Grid.Column="2"
+                        VerticalAlignment="Center"
+                        Opacity="0.7"
+                        TextTrimming="CharacterEllipsis" />
+
+                    <Button
+                        Grid.Row="1"
+                        Grid.Column="1"
+                        Content="Choose Shared Folder"
+                        Click="ChooseSharedFolderButton_Click" />
+
+                    <TextBlock
+                        x:Name="SharedFolderText"
+                        Grid.Row="1"
+                        Grid.Column="2"
+                        VerticalAlignment="Center"
+                        Opacity="0.7"
+                        TextTrimming="CharacterEllipsis" />
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <!-- Add chord section -->
+        <Border
+            Grid.Row="4"
             BorderBrush="{ThemeResource ControlElevationBorderBrush}"
             BorderThickness="0,0,0,1">
             <StackPanel Spacing="8" Margin="0,0,0,24">
@@ -147,12 +210,12 @@
 
         <!-- Chord list -->
         <Border
-            Grid.Row="4"
+            Grid.Row="5"
             BorderBrush="{ThemeResource ControlElevationBorderBrush}"
             BorderThickness="0,0,0,1">
             <ListView
                 x:Name="ChordListView"
-                Grid.Row="4"
+                Grid.Row="5"
                 ItemsSource="{x:Bind Chords}"
                 SelectionMode="None">
                 <ListView.ItemTemplate>
