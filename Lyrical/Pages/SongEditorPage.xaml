@@ -42,13 +42,24 @@
                     <Button Style="{ThemeResource SubtleButtonStyle}">
                         <FontIcon Glyph="&#xE710;"/>
                         <Button.Flyout>
-                            <Flyout Placement="Bottom" x:Name="AddCommandBarFlyout" >
-                                <StackPanel Orientation="Vertical" Margin="0,12,0,0">
-                                    <Button Content="Insert Tab" Click="InsertTabBlockButton_Click" Margin="0,0,0,24"/>
+                            <Flyout Placement="Bottom" x:Name="AddCommandBarFlyout">
+                                <StackPanel>
+                                    <AppBarButton Label="Insert Capo" Click="InsertCapoButton_Click" />
+                                    <AppBarButton Label="Insert Chorus" Click="InsertChorusBlockButton_Click" />
+                                    <AppBarButton Label="Insert Verse" Click="InsertVerseBlockButton_Click" />
+                                    <AppBarButton Label="Insert Tab" Click="InsertTabBlockButton_Click" />
+                                    <AppBarButton Label="Insert Subtitle" Click="InsertMetadataButton_Click" />
                                 </StackPanel>
                             </Flyout>
                         </Button.Flyout>
                     </Button>
+
+                    <AutoSuggestBox
+                        x:Name="SimilarSoundSearchBox"
+                        Width="280"
+                        PlaceholderText="Search for rhymes..."
+                        TextChanged="SimilarSoundSearchBox_TextChanged"
+                        QuerySubmitted="SimilarSoundSearchBox_QuerySubmitted" />
                 </StackPanel>
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
                     <Button Click="SetHelpTextBlock" Style="{ThemeResource SubtleButtonStyle}">
@@ -73,6 +84,13 @@
             </Grid>
 
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" VerticalAlignment="Center">
+                <ComboBox x:Name="FontSizeComboBox" Width="110" SelectionChanged="FontSizeComboBox_SelectionChanged">
+                    <ComboBoxItem Content="Font: 12" Tag="12" />
+                    <ComboBoxItem Content="Font: 14" Tag="14" />
+                    <ComboBoxItem Content="Font: 16" Tag="16" />
+                    <ComboBoxItem Content="Font: 18" Tag="18" />
+                    <ComboBoxItem Content="Font: 20" Tag="20" />
+                </ComboBox>
                 <ComboBox x:Name="DiagramPlacementComboBox" Width="180" SelectionChanged="DiagramPlacementComboBox_SelectionChanged" Padding="12,0,0,0">
                     <x:String>Diagrams: Top</x:String>
                     <x:String>Diagrams: Bottom</x:String>

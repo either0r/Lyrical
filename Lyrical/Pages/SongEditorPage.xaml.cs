@@ -5,7 +5,12 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Navigation;
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
+using System.Linq;
+using System.Net.Http;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Lyrical.Pages;
 
@@ -19,7 +24,11 @@ public sealed partial class SongEditorPage : Page
     private bool _isAutoSaving;
     private bool _isInitializing;
 
+    private static readonly HttpClient _httpClient = new();
+    private int _searchRequestVersion;
+
     private const double MinPaneWidth = 260;
+    private const double DefaultEditorFontSize = 16;
 
     public SongEditorPage()
     {
@@ -41,6 +50,8 @@ public sealed partial class SongEditorPage : Page
         _song.PropertyChanged += Song_PropertyChanged;
         EditorTextBox.Text = _song.ChordPro;
         DiagramPlacementComboBox.SelectedIndex = _song.ChordDiagramPlacement == ChordDiagramPlacement.Top ? 0 : 1;
+        FontSizeComboBox.SelectedIndex = 2;
+        ApplyEditorFontSize(DefaultEditorFontSize);
         RefreshPreview();
         _isInitializing = false;
 
@@ -131,6 +142,22 @@ public sealed partial class SongEditorPage : Page
         }
     }
 
+    private void FontSizeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (FontSizeComboBox.SelectedItem is ComboBoxItem item
+            && item.Tag is string tag
+            && double.TryParse(tag, out var size))
+        {
+            ApplyEditorFontSize(size);
+        }
+    }
+
+    private void ApplyEditorFontSize(double size)
+    {
+        EditorTextBox.FontSize = size;
+        PreviewRichTextBlock.FontSize = size;
+    }
+
     private void EditorPreviewSplitter_DragDelta(object sender, DragDeltaEventArgs e)
     {
         var left = EditorTextBox.ActualWidth + e.HorizontalChange;
@@ -179,7 +206,77 @@ public sealed partial class SongEditorPage : Page
 
     private void InsertTabBlockButton_Click(object sender, RoutedEventArgs e)
     {
-        InsertAtCursor("e|----------------|\r\nB|----------------|\r\nG|----------------|\r\nD|----------------|\r\nA|----------------|\r\nE|----------------|");
+        InsertAtCursor("{sot}\n\n{eot}\n");
+    }
+
+    private async void SimilarSoundSearchBox_TextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
+    {
+        if (args.Reason != AutoSuggestionBoxTextChangeReason.UserInput)
+        {
+            return;
+        }
+
+        var query = sender.Text?.Trim() ?? string.Empty;
+        if (query.Length < 2)
+        {
+            sender.ItemsSource = null;
+            return;
+        }
+
+        var requestVersion = ++_searchRequestVersion;
+        var results = await SearchSimilarSoundingWordsAsync(query);
+
+        if (requestVersion != _searchRequestVersion)
+        {
+            return;
+        }
+
+        sender.ItemsSource = results;
+    }
+
+    private void SimilarSoundSearchBox_QuerySubmitted(AutoSuggestBox sender, AutoSuggestBoxQuerySubmittedEventArgs args)
+    {
+        var selectedWord = args.ChosenSuggestion as string;
+        if (string.IsNullOrWhiteSpace(selectedWord))
+        {
+            selectedWord = sender.Text?.Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(selectedWord))
+        {
+            InsertAtCursor(selectedWord + " ");
+        }
+    }
+
+    private static async System.Threading.Tasks.Task<IReadOnlyList<string>> SearchSimilarSoundingWordsAsync(string query)
+    {
+        try
+        {
+            var url = $"https://api.datamuse.com/words?rel_rhy={Uri.EscapeDataString(query)}&max=12";
+            using var response = await _httpClient.GetAsync(url);
+            if (!response.IsSuccessStatusCode)
+            {
+                return [];
+            }
+
+            await using var stream = await response.Content.ReadAsStreamAsync();
+            var payload = await JsonSerializer.DeserializeAsync<List<DatamuseWordResult>>(stream);
+            if (payload is null)
+            {
+                return [];
+            }
+
+            return payload
+                .Select(p => p.Word?.Trim())
+                .Where(w => !string.IsNullOrWhiteSpace(w))
+                .Cast<string>()
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+        catch
+        {
+            return [];
+        }
     }
 
     private void CloseCurrentDocumentButton_Click(object sender, RoutedEventArgs e)
@@ -316,5 +413,11 @@ public sealed partial class SongEditorPage : Page
             "start_of_verse (short: sov), end_of_verse (short: eov)\n" +
             "start_of_bridge (short: sob) end_of_bridge (short: eob)\n";
         HelpTextBlock.Text = text;
+    }
+
+    private sealed class DatamuseWordResult
+    {
+        [JsonPropertyName("word")]
+        public string? Word { get; set; }
     }
 }
