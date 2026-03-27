@@ -11,11 +11,11 @@ public static class BackupService
     private const string HistoryFolderName = ".history";
     private const int MaxBackupsPerSong = 10;
 
-    public static async Task CreateBackupAsync(StorageFolder libraryFolder, string fileName, string content)
+    public static async Task CreateBackupAsync(string fileName, string content)
     {
         try
         {
-            var historyFolder = await GetOrCreateHistoryFolderAsync(libraryFolder);
+            var historyFolder = await GetOrCreateHistoryFolderAsync();
             if (historyFolder is null)
             {
                 return;
@@ -37,12 +37,12 @@ public static class BackupService
         }
     }
 
-    public static async Task<IReadOnlyList<BackupInfo>> GetBackupsAsync(StorageFolder libraryFolder, string fileName)
+    public static async Task<IReadOnlyList<BackupInfo>> GetBackupsAsync(string fileName)
     {
         try
         {
-            var historyFolder = await libraryFolder.TryGetItemAsync(HistoryFolderName);
-            if (historyFolder is not StorageFolder hFolder)
+            var historyFolder = await GetHistoryFolderIfExistsAsync();
+            if (historyFolder is null)
             {
                 return [];
             }
@@ -51,7 +51,7 @@ public static class BackupService
             var ext = System.IO.Path.GetExtension(fileName);
             var pattern = $"{baseName}~";
 
-            var files = await hFolder.GetFilesAsync();
+            var files = await historyFolder.GetFilesAsync();
             var backups = files
                 .Where(f => f.Name.StartsWith(pattern) && f.Name.EndsWith(ext))
                 .OrderByDescending(f => f.Name)
@@ -66,17 +66,17 @@ public static class BackupService
         }
     }
 
-    public static async Task<string?> RestoreBackupAsync(StorageFolder libraryFolder, string backupFileName)
+    public static async Task<string?> RestoreBackupAsync(string backupFileName)
     {
         try
         {
-            var historyFolder = await libraryFolder.TryGetItemAsync(HistoryFolderName);
-            if (historyFolder is not StorageFolder hFolder)
+            var historyFolder = await GetHistoryFolderIfExistsAsync();
+            if (historyFolder is null)
             {
                 return null;
             }
 
-            var item = await hFolder.TryGetItemAsync(backupFileName);
+            var item = await historyFolder.TryGetItemAsync(backupFileName);
             if (item is not StorageFile file)
             {
                 return null;
@@ -90,17 +90,32 @@ public static class BackupService
         }
     }
 
-    private static async Task<StorageFolder?> GetOrCreateHistoryFolderAsync(StorageFolder libraryFolder)
+    private static async Task<StorageFolder?> GetOrCreateHistoryFolderAsync()
     {
         try
         {
-            var existing = await libraryFolder.TryGetItemAsync(HistoryFolderName);
+            var localFolder = ApplicationData.Current.LocalFolder;
+            var existing = await localFolder.TryGetItemAsync(HistoryFolderName);
             if (existing is StorageFolder folder)
             {
                 return folder;
             }
 
-            return await libraryFolder.CreateFolderAsync(HistoryFolderName, CreationCollisionOption.OpenIfExists);
+            return await localFolder.CreateFolderAsync(HistoryFolderName, CreationCollisionOption.OpenIfExists);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static async Task<StorageFolder?> GetHistoryFolderIfExistsAsync()
+    {
+        try
+        {
+            var localFolder = ApplicationData.Current.LocalFolder;
+            var existing = await localFolder.TryGetItemAsync(HistoryFolderName);
+            return existing as StorageFolder;
         }
         catch
         {

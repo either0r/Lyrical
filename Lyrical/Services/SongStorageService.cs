@@ -255,7 +255,7 @@ public static class SongStorageService
         // Create timestamped backup after successful save
         if (!saveAsCopy)
         {
-            await BackupService.CreateBackupAsync(folder, song.FileName, song.ChordPro);
+            await BackupService.CreateBackupAsync(song.FileName, song.ChordPro);
         }
 
         if (!saveAsCopy
@@ -502,13 +502,27 @@ E|----------------|
     private static bool TryParseDirective(string line, string directiveName, out string value)
     {
         value = string.Empty;
-        var match = Regex.Match(line.Trim(), "^\\{" + Regex.Escape(directiveName) + "\\s*:\\s*(.*?)\\}$", RegexOptions.IgnoreCase);
-        if (!match.Success)
+
+        var trimmed = line.Trim();
+        if (!trimmed.StartsWith('{') || !trimmed.EndsWith('}'))
         {
             return false;
         }
 
-        value = match.Groups[1].Value.Trim();
+        var inner = trimmed[1..^1];
+        var separatorIndex = inner.IndexOf(':');
+        if (separatorIndex <= 0)
+        {
+            return false;
+        }
+
+        var name = inner[..separatorIndex].Trim();
+        if (!string.Equals(name, directiveName, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        value = inner[(separatorIndex + 1)..].Trim();
         return value.Length > 0;
     }
 

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using Lyrical.Models;
 
@@ -8,6 +9,11 @@ namespace Lyrical.Models;
 /// <summary>Parsed representation of a ChordPro {define: …} directive.</summary>
 public class CustomChordDefinition
 {
+    private static readonly HashSet<string> FretTerminatorKeywords = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "fingers", "keys", "display", "format", "diagram", "copy", "copyall"
+    };
+
     public string Name { get; set; } = string.Empty;
 
     /// <summary>
@@ -59,7 +65,7 @@ public class CustomChordDefinition
 
             if ((token == "base-fret" || token == "base_fret") && i + 1 < tokens.Length)
             {
-                int.TryParse(tokens[i + 1], out baseFret);
+                int.TryParse(tokens[i + 1], NumberStyles.Integer, CultureInfo.InvariantCulture, out baseFret);
                 i += 2;
                 continue;
             }
@@ -67,14 +73,7 @@ public class CustomChordDefinition
             if (token == "frets")
             {
                 i++;
-                while (i < tokens.Length
-                    && tokens[i].ToLowerInvariant() != "fingers"
-                    && tokens[i].ToLowerInvariant() != "keys"
-                    && tokens[i].ToLowerInvariant() != "display"
-                    && tokens[i].ToLowerInvariant() != "format"
-                    && tokens[i].ToLowerInvariant() != "diagram"
-                    && tokens[i].ToLowerInvariant() != "copy"
-                    && tokens[i].ToLowerInvariant() != "copyall")
+                while (i < tokens.Length && !FretTerminatorKeywords.Contains(tokens[i]))
                 {
                     fretsList.Add(tokens[i]);
                     i++;
@@ -93,14 +92,16 @@ public class CustomChordDefinition
 
     private static string NormalizeFretChar(string token)
     {
-        if (token == "x" || token == "X" || token == "-1" || token == "N")
+        if (string.Equals(token, "x", StringComparison.OrdinalIgnoreCase)
+            || token == "-1"
+            || string.Equals(token, "n", StringComparison.OrdinalIgnoreCase))
         {
             return "x";
         }
 
-        if (int.TryParse(token, out var n) && n >= 0 && n <= 9)
+        if (int.TryParse(token, NumberStyles.Integer, CultureInfo.InvariantCulture, out var n) && n >= 0 && n <= 9)
         {
-            return n.ToString();
+            return n.ToString(CultureInfo.InvariantCulture);
         }
 
         return "x";

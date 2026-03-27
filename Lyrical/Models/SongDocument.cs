@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Globalization;
 using System.Runtime.CompilerServices;
 
 namespace Lyrical.Models;
@@ -72,7 +73,7 @@ public partial class SongDocument : INotifyPropertyChanged
         }
     }
 
-    public string LastModifiedText => LastModified.LocalDateTime.ToString("M/dd/yyyy h:mm tt");
+    public string LastModifiedText => LastModified.LocalDateTime.ToString("M/dd/yyyy h:mm tt", CultureInfo.CurrentCulture);
 
     public static SongDocument CreateNew(string title = "Untitled")
     {

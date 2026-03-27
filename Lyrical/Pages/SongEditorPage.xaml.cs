@@ -552,13 +552,7 @@ public sealed partial class SongEditorPage : Page
             return;
         }
 
-        var folder = await SongStorageService.TryGetStoredFolderAsync(SongStorageService.ActiveLibraryMode);
-        if (folder is null)
-        {
-            return;
-        }
-
-        var backups = await BackupService.GetBackupsAsync(folder, _song.FileName);
+        var backups = await BackupService.GetBackupsAsync(_song.FileName);
         if (backups.Count == 0)
         {
             var emptyDialog = new ContentDialog
@@ -578,7 +572,7 @@ public sealed partial class SongEditorPage : Page
             return;
         }
 
-        var restoredContent = await BackupService.RestoreBackupAsync(folder, selectedBackup.FileName);
+        var restoredContent = await BackupService.RestoreBackupAsync(selectedBackup.FileName);
         if (string.IsNullOrWhiteSpace(restoredContent))
         {
             return;
