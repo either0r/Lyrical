@@ -15,6 +15,7 @@ using Windows.ApplicationModel;
 using Windows.ApplicationModel.Activation;
 using Windows.Foundation;
 using Windows.Foundation.Collections;
+using Windows.Storage;
 
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
@@ -51,6 +52,40 @@ namespace Lyrical
             _window = new MainWindow();
             MainAppWindow = _window;
             _window.Activate();
+            
+            // Handle command-line arguments
+            HandleCommandLineArgs(args.Arguments);
+        }
+
+        private void HandleCommandLineArgs(string args)
+        {
+            // Parse command-line arguments for file path
+            if (string.IsNullOrWhiteSpace(args))
+                return;
+
+            var filePath = args.Trim();
+            if (File.Exists(filePath) && (filePath.EndsWith(".cho", StringComparison.OrdinalIgnoreCase)))
+            {
+                // Open the file asynchronously
+                _ = OpenFileFromCommandLineAsync(filePath);
+            }
+        }
+
+        private async System.Threading.Tasks.Task OpenFileFromCommandLineAsync(string filePath)
+        {
+            try
+            {
+                var file = await StorageFile.GetFileFromPathAsync(filePath);
+                await Lyrical.Services.FileActivationService.HandleFileActivationAsync(file);
+                if (_window is MainWindow mainWin)
+                {
+                    mainWin.OpenActivationFile();
+                }
+            }
+            catch
+            {
+                // File not found or inaccessible - continue with normal startup
+            }
         }
     }
 }

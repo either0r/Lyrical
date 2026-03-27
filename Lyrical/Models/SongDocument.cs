@@ -5,12 +5,13 @@ using System.Runtime.CompilerServices;
 
 namespace Lyrical.Models;
 
-public class SongDocument : INotifyPropertyChanged
+public partial class SongDocument : INotifyPropertyChanged
 {
     private string _title = "Untitled";
     private string _artist = "";
     private string _key = "C";
     private string _chordPro = "";
+    private string _createdBy = "Unknown";
     private ChordDiagramPlacement _chordDiagramPlacement = ChordDiagramPlacement.Bottom;
     private string? _fileName;
     private DateTimeOffset _lastModified = DateTimeOffset.Now;
@@ -39,6 +40,12 @@ public class SongDocument : INotifyPropertyChanged
     {
         get => _chordPro;
         set => SetProperty(ref _chordPro, value);
+    }
+
+    public string CreatedBy
+    {
+        get => _createdBy;
+        set => SetProperty(ref _createdBy, string.IsNullOrWhiteSpace(value) ? "Unknown" : value.Trim());
     }
 
     public ChordDiagramPlacement ChordDiagramPlacement

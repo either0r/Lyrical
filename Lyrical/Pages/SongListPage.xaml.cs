@@ -6,6 +6,7 @@ using Microsoft.UI.Xaml.Navigation;
 using System;
 using System.Collections.ObjectModel;
 using System.Runtime.InteropServices.WindowsRuntime;
+using Windows.Storage.Pickers;
 
 namespace Lyrical.Pages;
 
@@ -47,6 +48,44 @@ public sealed partial class SongListPage : Page
         }
 
         Frame.Navigate(typeof(SongEditorPage), SongDocument.CreateNew(title));
+    }
+
+    private async void OpenFileButton_Click(object sender, RoutedEventArgs e)
+    {
+        var picker = new Windows.Storage.Pickers.FileOpenPicker();
+        picker.FileTypeFilter.Add(".cho");
+        picker.FileTypeFilter.Add("*");
+
+        // Get the window handle for the picker
+        var window = App.MainAppWindow;
+        if (window != null)
+        {
+            var hWnd = WinRT.Interop.WindowNative.GetWindowHandle(window);
+            WinRT.Interop.InitializeWithWindow.Initialize(picker, hWnd);
+        }
+
+        var file = await picker.PickSingleFileAsync();
+        if (file == null)
+        {
+            return;
+        }
+
+        var song = await SongStorageService.LoadSongFromFileAsync(file);
+        if (song != null)
+        {
+            Frame.Navigate(typeof(SongEditorPage), song);
+        }
+        else
+        {
+            var dialog = new ContentDialog
+            {
+                XamlRoot = XamlRoot,
+                Title = "Could not open file",
+                Content = "The selected file could not be opened.",
+                CloseButtonText = "OK"
+            };
+            _ = await dialog.ShowAsync();
+        }
     }
 
     private async void DeleteSongButton_Click(object sender, RoutedEventArgs e)

@@ -12,6 +12,15 @@ using WinRT.Interop;
 
 namespace Lyrical.Services;
 
+public sealed record SongSaveConflictCheckResult(
+    bool HasConflict,
+    bool IsMissing,
+    DateTimeOffset? CurrentFileLastModified,
+    string CurrentFileContent)
+{
+    public static SongSaveConflictCheckResult NoConflict() => new(false, false, null, string.Empty);
+}
+
 public static class SongStorageService
 {
     private const string LocalFolderTokenSettingKey = "SongLibraryFolderTokenLocal";
@@ -20,6 +29,7 @@ public static class SongStorageService
     private const string ExampleSongTitle = "Example Song - ChordPro Guide";
     private const string ExampleSeededLocalSettingKey = "ExampleSongSeededLocal";
     private const string ExampleSeededSharedSettingKey = "ExampleSongSeededShared";
+    private const string CreatorDirective = "x_creator";
 
     public static SongLibraryMode ActiveLibraryMode
     {
@@ -72,6 +82,64 @@ public static class SongStorageService
         return songs;
     }
 
+    public static async Task<SongDocument?> LoadSongFromFileAsync(IStorageFile file)
+    {
+        try
+        {
+            var content = await FileIO.ReadTextAsync(file);
+            var song = CreateSongFromChordPro(content);
+            song.FileName = file.Name;
+            var properties = await file.GetBasicPropertiesAsync();
+            song.LastModified = properties.DateModified;
+            return song;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public static async Task<SongSaveConflictCheckResult> CheckForExternalChangeAsync(SongDocument song)
+    {
+        if (string.IsNullOrWhiteSpace(song.FileName))
+        {
+            return SongSaveConflictCheckResult.NoConflict();
+        }
+
+        var folder = await TryGetStoredFolderAsync(ActiveLibraryMode);
+        if (folder is null)
+        {
+            return SongSaveConflictCheckResult.NoConflict();
+        }
+
+        var item = await folder.TryGetItemAsync(song.FileName);
+        if (item is not StorageFile file)
+        {
+            return new SongSaveConflictCheckResult(
+                HasConflict: true,
+                IsMissing: true,
+                CurrentFileLastModified: null,
+                CurrentFileContent: string.Empty);
+        }
+
+        var properties = await file.GetBasicPropertiesAsync();
+        var currentModified = properties.DateModified;
+
+        // Small tolerance for filesystem timestamp precision
+        var hasConflict = currentModified > song.LastModified.AddSeconds(1);
+        if (!hasConflict)
+        {
+            return SongSaveConflictCheckResult.NoConflict();
+        }
+
+        var currentContent = await FileIO.ReadTextAsync(file);
+        return new SongSaveConflictCheckResult(
+            HasConflict: true,
+            IsMissing: false,
+            CurrentFileLastModified: currentModified,
+            CurrentFileContent: currentContent);
+    }
+
     public static async Task<bool> SaveSongAsync(SongDocument song)
     {
         var folder = await GetOrPromptForSongFolderAsync(ActiveLibraryMode);
@@ -80,7 +148,18 @@ public static class SongStorageService
             return false;
         }
 
-        return await SaveSongToFolderAsync(song, folder);
+        return await SaveSongToFolderAsync(song, folder, saveAsCopy: false);
+    }
+
+    public static async Task<bool> SaveSongAsCopyAsync(SongDocument song)
+    {
+        var folder = await GetOrPromptForSongFolderAsync(ActiveLibraryMode);
+        if (folder is null)
+        {
+            return false;
+        }
+
+        return await SaveSongToFolderAsync(song, folder, saveAsCopy: true);
     }
 
     public static async Task<bool> SaveSongSilentlyAsync(SongDocument song)
@@ -91,7 +170,7 @@ public static class SongStorageService
             return false;
         }
 
-        return await SaveSongToFolderAsync(song, folder);
+        return await SaveSongToFolderAsync(song, folder, saveAsCopy: false);
     }
 
     public static async Task<bool> DeleteSongAsync(SongDocument song)
@@ -151,18 +230,36 @@ public static class SongStorageService
         return $"{modeLabel}: {folder.Name}";
     }
 
-    private static async Task<bool> SaveSongToFolderAsync(SongDocument song, StorageFolder folder)
+    private static async Task<bool> SaveSongToFolderAsync(SongDocument song, StorageFolder folder, bool saveAsCopy)
     {
+        EnsureCreatorDirective(song);
         ApplyMetadataFromChordPro(song);
 
         var previousFileName = song.FileName;
         var targetFileName = BuildFileName(song.Title);
 
+        if (saveAsCopy)
+        {
+            targetFileName = await BuildUniqueCopyFileNameAsync(folder, targetFileName);
+        }
+
         var file = await folder.CreateFileAsync(targetFileName, CreationCollisionOption.ReplaceExisting);
         await FileIO.WriteTextAsync(file, song.ChordPro);
         song.FileName = file.Name;
 
-        if (!string.IsNullOrWhiteSpace(previousFileName)
+        if (ExportSettingsService.ExportHtmlOnSave)
+        {
+            await ExportHtmlCompanionAsync(song, folder);
+        }
+
+        // Create timestamped backup after successful save
+        if (!saveAsCopy)
+        {
+            await BackupService.CreateBackupAsync(folder, song.FileName, song.ChordPro);
+        }
+
+        if (!saveAsCopy
+            && !string.IsNullOrWhiteSpace(previousFileName)
             && !string.Equals(previousFileName, targetFileName, StringComparison.OrdinalIgnoreCase))
         {
             var previousItem = await folder.TryGetItemAsync(previousFileName);
@@ -170,11 +267,71 @@ public static class SongStorageService
             {
                 await previousFile.DeleteAsync(StorageDeleteOption.PermanentDelete);
             }
+
+            var previousHtmlName = Path.ChangeExtension(previousFileName, ".html");
+            var previousHtmlItem = await folder.TryGetItemAsync(previousHtmlName);
+            if (previousHtmlItem is StorageFile previousHtmlFile)
+            {
+                await previousHtmlFile.DeleteAsync(StorageDeleteOption.PermanentDelete);
+            }
         }
 
         var properties = await file.GetBasicPropertiesAsync();
         song.LastModified = properties.DateModified;
         return true;
+    }
+
+    private static async Task<string> BuildUniqueCopyFileNameAsync(StorageFolder folder, string baseFileName)
+    {
+        var baseName = Path.GetFileNameWithoutExtension(baseFileName);
+        var ext = Path.GetExtension(baseFileName);
+
+        var candidate = $"{baseName} (Copy){ext}";
+        var i = 2;
+
+        while (await folder.TryGetItemAsync(candidate) is not null)
+        {
+            candidate = $"{baseName} (Copy {i}){ext}";
+            i++;
+        }
+
+        return candidate;
+    }
+
+    private static async Task ExportHtmlCompanionAsync(SongDocument song, StorageFolder folder)
+    {
+        if (string.IsNullOrWhiteSpace(song.FileName))
+        {
+            return;
+        }
+
+        var htmlName = Path.ChangeExtension(song.FileName, ".html");
+        var htmlContent = ChordProHtmlExporter.BuildHtml(song.ChordPro);
+        var htmlFile = await folder.CreateFileAsync(htmlName, CreationCollisionOption.ReplaceExisting);
+        await FileIO.WriteTextAsync(htmlFile, htmlContent);
+    }
+
+    private static void EnsureCreatorDirective(SongDocument song)
+    {
+        var lines = song.ChordPro.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
+        foreach (var line in lines)
+        {
+            if (TryParseDirective(line, CreatorDirective, out var creator))
+            {
+                song.CreatedBy = creator;
+                return;
+            }
+        }
+
+        var currentUser = string.IsNullOrWhiteSpace(Environment.UserName)
+            ? "Unknown"
+            : Environment.UserName.Trim();
+
+        song.CreatedBy = currentUser;
+        var creatorLine = $"{{{CreatorDirective}: {currentUser}}}";
+        song.ChordPro = string.IsNullOrWhiteSpace(song.ChordPro)
+            ? creatorLine + "\n"
+            : creatorLine + "\n" + song.ChordPro;
     }
 
     private static async Task<StorageFolder?> GetOrPromptForSongFolderAsync(SongLibraryMode mode)
@@ -194,7 +351,7 @@ public static class SongStorageService
         return await TryGetStoredFolderAsync(mode);
     }
 
-    private static async Task<StorageFolder?> TryGetStoredFolderAsync(SongLibraryMode mode)
+    public static async Task<StorageFolder?> TryGetStoredFolderAsync(SongLibraryMode mode)
     {
         if (ApplicationData.Current.LocalSettings.Values[GetFolderTokenKey(mode)] is not string token || string.IsNullOrWhiteSpace(token))
         {
@@ -264,6 +421,7 @@ public static class SongStorageService
     private static string GetExampleSongChordPro()
     {
         return """
+{x_creator: Lyrical Demo}
 {title: Example Song - ChordPro Guide}
 {subtitle: Demonstrates common directives and formatting}
 {artist: Lyrical}
@@ -316,7 +474,7 @@ E|----------------|
 
     private static void ApplyMetadataFromChordPro(SongDocument song)
     {
-        var lines = song.ChordPro.Replace("\r\n", "\n").Split('\n');
+        var lines = song.ChordPro.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
         foreach (var line in lines)
         {
             if (TryParseDirective(line, "title", out var title) || TryParseDirective(line, "t", out title))
@@ -332,6 +490,11 @@ E|----------------|
             if (TryParseDirective(line, "key", out var key))
             {
                 song.Key = key;
+            }
+
+            if (TryParseDirective(line, CreatorDirective, out var creator))
+            {
+                song.CreatedBy = creator;
             }
         }
     }

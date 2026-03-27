@@ -16,6 +16,13 @@ namespace Lyrical.Pages;
 
 public sealed partial class SongEditorPage : Page
 {
+    private enum ConflictResolution
+    {
+        Reload,
+        Overwrite,
+        SaveAsCopy
+    }
+
     private SongDocument _song = SongDocument.CreateNew();
     private PreviewWindow? _previewWindow;
 
@@ -23,6 +30,9 @@ public sealed partial class SongEditorPage : Page
     private bool _hasPendingChanges;
     private bool _isAutoSaving;
     private bool _isInitializing;
+    private bool _hasExternalConflict;
+
+    public bool HasPendingChanges => _hasPendingChanges;
 
     private static readonly HttpClient _httpClient = new();
     private int _searchRequestVersion;
@@ -115,6 +125,13 @@ public sealed partial class SongEditorPage : Page
             return;
         }
 
+        var conflict = await SongStorageService.CheckForExternalChangeAsync(_song);
+        if (conflict.HasConflict)
+        {
+            _hasExternalConflict = true;
+            return;
+        }
+
         _isAutoSaving = true;
         try
         {
@@ -122,6 +139,7 @@ public sealed partial class SongEditorPage : Page
             if (saved)
             {
                 _hasPendingChanges = false;
+                _hasExternalConflict = false;
             }
         }
         finally
@@ -284,8 +302,34 @@ public sealed partial class SongEditorPage : Page
 
     }
 
-    private void BackButton_Click(object sender, RoutedEventArgs e)
+    private async void BackButton_Click(object sender, RoutedEventArgs e)
     {
+        if (_hasPendingChanges)
+        {
+            var dialog = new ContentDialog
+            {
+                XamlRoot = XamlRoot,
+                Title = "Unsaved changes",
+                Content = "You have unsaved changes. Save now or discard?",
+                PrimaryButtonText = "Save",
+                SecondaryButtonText = "Discard",
+                CloseButtonText = "Cancel",
+                DefaultButton = ContentDialogButton.Primary
+            };
+
+            var result = await dialog.ShowAsync();
+            if (result == ContentDialogResult.Primary)
+            {
+                await SaveSongAsync();
+                return;
+            }
+
+            if (result != ContentDialogResult.Secondary)
+            {
+                return; // Cancel
+            }
+        }
+
         if (Frame?.CanGoBack == true)
         {
             Frame.GoBack();
@@ -293,6 +337,51 @@ public sealed partial class SongEditorPage : Page
         }
 
         Frame?.Navigate(typeof(SongListPage));
+    }
+
+    private async System.Threading.Tasks.Task SaveSongAsync()
+    {
+        var conflict = await SongStorageService.CheckForExternalChangeAsync(_song);
+        bool saved;
+
+        if (conflict.HasConflict)
+        {
+            _hasExternalConflict = true;
+
+            var resolution = await ShowConflictDialogAsync(conflict);
+            if (resolution == ConflictResolution.Reload)
+            {
+                ApplyReloadFromConflict(conflict);
+                return;
+            }
+
+            saved = resolution == ConflictResolution.SaveAsCopy
+                ? await SongStorageService.SaveSongAsCopyAsync(_song)
+                : await SongStorageService.SaveSongAsync(_song);
+        }
+        else
+        {
+            saved = await SongStorageService.SaveSongAsync(_song);
+        }
+
+        if (saved)
+        {
+            _hasPendingChanges = false;
+            _hasExternalConflict = false;
+            _autoSaveTimer.Stop();
+        }
+
+        var dialog = new ContentDialog
+        {
+            XamlRoot = XamlRoot,
+            Title = saved ? "Song saved" : "Save cancelled",
+            Content = saved
+                ? "Your song was saved. It will appear in Songs list."
+                : "No folder was selected. Save was cancelled.",
+            CloseButtonText = "OK"
+        };
+
+        await dialog.ShowAsync();
     }
 
     private void SaveButton_Click(object sender, RoutedEventArgs e)
@@ -382,14 +471,55 @@ public sealed partial class SongEditorPage : Page
         _song.PropertyChanged -= Song_PropertyChanged;
     }
 
+    private async System.Threading.Tasks.Task<ConflictResolution> ShowConflictDialogAsync(SongSaveConflictCheckResult conflict)
+    {
+        var content = conflict.IsMissing
+            ? "This song file no longer exists in the shared folder. Choose Reload (discard local edits), Overwrite (recreate this file), or Save as copy."
+            : $"This file was modified by someone else at {conflict.CurrentFileLastModified?.LocalDateTime:M/dd/yyyy h:mm tt}. Choose Reload, Overwrite, or Save as copy.";
+
+        var dialog = new ContentDialog
+        {
+            XamlRoot = XamlRoot,
+            Title = "Save conflict detected",
+            Content = content,
+            PrimaryButtonText = "Reload",
+            SecondaryButtonText = "Overwrite",
+            CloseButtonText = "Save as copy",
+            DefaultButton = ContentDialogButton.Close
+        };
+
+        var result = await dialog.ShowAsync();
+        return result switch
+        {
+            ContentDialogResult.Primary => ConflictResolution.Reload,
+            ContentDialogResult.Secondary => ConflictResolution.Overwrite,
+            _ => ConflictResolution.SaveAsCopy
+        };
+    }
+
+    private void ApplyReloadFromConflict(SongSaveConflictCheckResult conflict)
+    {
+        if (!conflict.IsMissing && !string.IsNullOrWhiteSpace(conflict.CurrentFileContent))
+        {
+            _song.ChordPro = conflict.CurrentFileContent;
+        }
+
+        if (conflict.CurrentFileLastModified is DateTimeOffset modified)
+        {
+            _song.LastModified = modified;
+        }
+
+        _hasPendingChanges = false;
+        _hasExternalConflict = false;
+        _autoSaveTimer.Stop();
+    }
+
     private async void SaveSongButton_Click(object sender, RoutedEventArgs e)
     {
-        var saved = await SongStorageService.SaveSongAsync(_song);
-        if (saved)
-        {
-            _hasPendingChanges = false;
-            _autoSaveTimer.Stop();
-        }
+        await SaveSongAsync();
+
+        var conflict = await SongStorageService.CheckForExternalChangeAsync(_song);
+        var saved = !_hasPendingChanges;
 
         var dialog = new ContentDialog
         {
@@ -415,6 +545,152 @@ public sealed partial class SongEditorPage : Page
         HelpTextBlock.Text = text;
     }
 
+    private async void RestoreBackupButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (string.IsNullOrWhiteSpace(_song.FileName))
+        {
+            return;
+        }
+
+        var folder = await SongStorageService.TryGetStoredFolderAsync(SongStorageService.ActiveLibraryMode);
+        if (folder is null)
+        {
+            return;
+        }
+
+        var backups = await BackupService.GetBackupsAsync(folder, _song.FileName);
+        if (backups.Count == 0)
+        {
+            var emptyDialog = new ContentDialog
+            {
+                XamlRoot = XamlRoot,
+                Title = "No backups",
+                Content = "No backup history found for this song.",
+                CloseButtonText = "OK"
+            };
+            await emptyDialog.ShowAsync();
+            return;
+        }
+
+        var selectedBackup = await ShowBackupSelectionAsync(backups);
+        if (selectedBackup is null)
+        {
+            return;
+        }
+
+        var restoredContent = await BackupService.RestoreBackupAsync(folder, selectedBackup.FileName);
+        if (string.IsNullOrWhiteSpace(restoredContent))
+        {
+            return;
+        }
+
+        _isInitializing = true;
+        _song.ChordPro = restoredContent;
+        ApplyMetadataFromChordPro(_song);
+        EditorTextBox.Text = _song.ChordPro;
+        RefreshPreview();
+        _isInitializing = false;
+
+        _hasPendingChanges = true;
+
+        var confirmDialog = new ContentDialog
+        {
+            XamlRoot = XamlRoot,
+            Title = "Backup restored",
+            Content = $"Restored from {selectedBackup.Timestamp}. You can now save or continue editing.",
+            PrimaryButtonText = "Save",
+            CloseButtonText = "Keep editing",
+            DefaultButton = ContentDialogButton.Primary
+        };
+
+        var result = await confirmDialog.ShowAsync();
+        if (result == ContentDialogResult.Primary)
+        {
+            SaveSongButton_Click(sender, e);
+        }
+    }
+
+    private async System.Threading.Tasks.Task<Services.BackupInfo?> ShowBackupSelectionAsync(IReadOnlyList<Services.BackupInfo> backups)
+    {
+        var items = backups.Select(b => $"{b.Index}. {b.Timestamp}").ToList();
+
+        var listBox = new ListBox
+        {
+            ItemsSource = items,
+            Height = 200,
+            SelectedIndex = 0
+        };
+
+        var dialog = new ContentDialog
+        {
+            XamlRoot = XamlRoot,
+            Title = "Restore backup",
+            Content = new StackPanel
+            {
+                Children =
+                {
+                    new TextBlock { Text = "Select a backup to restore:", Margin = new Thickness(0, 0, 0, 12) },
+                    listBox
+                }
+            },
+            PrimaryButtonText = "Restore",
+            CloseButtonText = "Cancel"
+        };
+
+        var result = await dialog.ShowAsync();
+        if (result != ContentDialogResult.Primary)
+        {
+            return null;
+        }
+
+        var selectedIndex = listBox.SelectedIndex;
+        return selectedIndex >= 0 && selectedIndex < backups.Count ? backups[selectedIndex] : null;
+    }
+
+    private void ApplyMetadataFromChordPro(SongDocument song)
+    {
+        var lines = song.ChordPro.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
+        foreach (var line in lines)
+        {
+            var trimmed = line.Trim();
+            if (!trimmed.StartsWith('{') || !trimmed.EndsWith('}'))
+            {
+                continue;
+            }
+
+            var inner = trimmed[1..^1];
+            var colonIdx = inner.IndexOf(':');
+            if (colonIdx < 0)
+            {
+                continue;
+            }
+
+            var directiveName = inner[..colonIdx].Trim().ToLowerInvariant();
+            var directiveValue = inner[(colonIdx + 1)..].Trim();
+
+            if ((directiveName == "title" || directiveName == "t") && !string.IsNullOrWhiteSpace(directiveValue))
+            {
+                song.Title = directiveValue;
+            }
+
+            if ((directiveName == "artist" || directiveName == "subtitle") && !string.IsNullOrWhiteSpace(directiveValue))
+            {
+                song.Artist = directiveValue;
+            }
+
+            if (directiveName == "key" && !string.IsNullOrWhiteSpace(directiveValue))
+            {
+                song.Key = directiveValue;
+            }
+        }
+    }
+
+    public void TriggerSave()
+    {
+        SaveSongButton_Click(null!, new RoutedEventArgs());
+    }
+
+    public sealed record BackupInfo(string FileName, string Timestamp, int Index);
     private sealed class DatamuseWordResult
     {
         [JsonPropertyName("word")]

@@ -80,6 +80,12 @@
                             </Flyout>
                         </Button.Flyout>
                     </Button>
+                    <Button Click="RestoreBackupButton_Click" Style="{ThemeResource SubtleButtonStyle}">
+                        <ToolTipService.ToolTip>
+                            <ToolTip Content="Restore from backup history"/>
+                        </ToolTipService.ToolTip>
+                        <FontIcon Glyph="&#xE72C;"/>
+                    </Button>
                 </StackPanel>
             </Grid>
 
