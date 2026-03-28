@@ -22,6 +22,7 @@
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
 
@@ -304,6 +305,32 @@
                         </DataTemplate>
                     </ListView.ItemTemplate>
                 </ListView>
+            </Border>
+
+            <!-- Desktop shortcut section -->
+            <Border
+                Grid.Row="7"
+                BorderBrush="{ThemeResource ControlElevationBorderBrush}"
+                BorderThickness="0,0,0,1">
+                <StackPanel Spacing="8" Margin="0,0,0,24">
+                    <TextBlock
+                        Text="Desktop Shortcut"
+                        Style="{StaticResource SubtitleTextBlockStyle}" />
+                    <TextBlock
+                        x:Name="ShortcutStatusText"
+                        Opacity="0.7"
+                        TextWrapping="Wrap" />
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <Button
+                            x:Name="CreateShortcutButton"
+                            Content="Add shortcut"
+                            Click="CreateShortcutButton_Click" />
+                        <Button
+                            x:Name="RemoveShortcutButton"
+                            Content="Remove shortcut"
+                            Click="RemoveShortcutButton_Click" />
+                    </StackPanel>
+                </StackPanel>
             </Border>
         </Grid>
     </ScrollViewer>

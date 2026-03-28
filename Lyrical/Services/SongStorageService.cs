@@ -57,29 +57,34 @@ public static class SongStorageService
             return [];
         }
 
-        var seeded = await EnsureExampleSongSeededOnceAsync(folder, ActiveLibraryMode);
-
-        var files = await folder.GetFilesAsync();
-        var songFiles = files.Where(f => string.Equals(f.FileType, ".cho", StringComparison.OrdinalIgnoreCase)).ToList();
-
-        if (seeded)
-        {
-            files = await folder.GetFilesAsync();
-            songFiles = files.Where(f => string.Equals(f.FileType, ".cho", StringComparison.OrdinalIgnoreCase)).ToList();
-        }
+        _ = await EnsureExampleSongSeededOnceAsync(folder, ActiveLibraryMode);
 
         var songs = new List<SongDocument>();
-        foreach (var file in songFiles)
+        await LoadSongsRecursiveAsync(folder, string.Empty, songs);
+
+        return songs
+            .OrderBy(song => song.RelativeFolderPath, StringComparer.CurrentCultureIgnoreCase)
+            .ThenBy(song => song.Title, StringComparer.CurrentCultureIgnoreCase)
+            .ToList();
+    }
+
+    public static async Task<SongFolder> LoadFolderTreeAsync()
+    {
+        var root = new SongFolder
         {
-            var content = await FileIO.ReadTextAsync(file);
-            var song = CreateSongFromChordPro(content);
-            song.FileName = file.Name;
-            var properties = await file.GetBasicPropertiesAsync();
-            song.LastModified = properties.DateModified;
-            songs.Add(song);
+            Name = "All Songs",
+            RelativePath = string.Empty
+        };
+
+        var folder = await TryGetStoredFolderAsync(ActiveLibraryMode);
+        if (folder is null)
+        {
+            return root;
         }
 
-        return songs;
+        _ = await EnsureExampleSongSeededOnceAsync(folder, ActiveLibraryMode);
+        await PopulateFolderTreeAsync(folder, root);
+        return root;
     }
 
     public static async Task<SongDocument?> LoadSongFromFileAsync(IStorageFile file)
@@ -89,6 +94,7 @@ public static class SongStorageService
             var content = await FileIO.ReadTextAsync(file);
             var song = CreateSongFromChordPro(content);
             song.FileName = file.Name;
+            song.RelativeFolderPath = string.Empty;
             var properties = await file.GetBasicPropertiesAsync();
             song.LastModified = properties.DateModified;
             return song;
@@ -112,8 +118,8 @@ public static class SongStorageService
             return SongSaveConflictCheckResult.NoConflict();
         }
 
-        var item = await folder.TryGetItemAsync(song.FileName);
-        if (item is not StorageFile file)
+        var file = await TryGetSongFileAsync(folder, song);
+        if (file is null)
         {
             return new SongSaveConflictCheckResult(
                 HasConflict: true,
@@ -125,7 +131,6 @@ public static class SongStorageService
         var properties = await file.GetBasicPropertiesAsync();
         var currentModified = properties.DateModified;
 
-        // Small tolerance for filesystem timestamp precision
         var hasConflict = currentModified > song.LastModified.AddSeconds(1);
         if (!hasConflict)
         {
@@ -180,19 +185,170 @@ public static class SongStorageService
             return false;
         }
 
-        var folder = await TryGetStoredFolderAsync(ActiveLibraryMode);
+        var rootFolder = await TryGetStoredFolderAsync(ActiveLibraryMode);
+        if (rootFolder is null)
+        {
+            return false;
+        }
+
+        var file = await TryGetSongFileAsync(rootFolder, song);
+        if (file is null)
+        {
+            return false;
+        }
+
+        await file.DeleteAsync(StorageDeleteOption.Default);
+
+        var htmlFile = await TryGetStorageFileAsync(rootFolder, Path.ChangeExtension(song.RelativeFilePath, ".html"));
+        if (htmlFile is not null)
+        {
+            await htmlFile.DeleteAsync(StorageDeleteOption.Default);
+        }
+
+        return true;
+    }
+
+    public static async Task<bool> RenameSongAsync(SongDocument song, string newTitle)
+    {
+        var normalizedTitle = string.IsNullOrWhiteSpace(newTitle)
+            ? string.Empty
+            : newTitle.Trim();
+        if (normalizedTitle.Length == 0)
+        {
+            return false;
+        }
+
+        song.ChordPro = UpsertDirective(song.ChordPro, "title", normalizedTitle);
+        song.Title = normalizedTitle;
+
+        var rootFolder = await GetOrPromptForSongFolderAsync(ActiveLibraryMode);
+        if (rootFolder is null)
+        {
+            return false;
+        }
+
+        return await SaveSongToFolderAsync(song, rootFolder, saveAsCopy: false);
+    }
+
+    public static async Task<bool> CreateFolderAsync(string relativePath)
+    {
+        var normalized = NormalizeRelativeFolderPath(relativePath);
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            return false;
+        }
+
+        var rootFolder = await GetOrPromptForSongFolderAsync(ActiveLibraryMode);
+        if (rootFolder is null)
+        {
+            return false;
+        }
+
+        var created = await GetFolderByRelativePathAsync(rootFolder, normalized, createIfMissing: true);
+        return created is not null;
+    }
+
+    public static async Task<bool> RenameFolderAsync(string relativePath, string newName)
+    {
+        var normalizedPath = NormalizeRelativeFolderPath(relativePath);
+        var sanitizedName = BuildFolderName(newName);
+        if (string.IsNullOrWhiteSpace(normalizedPath) || string.IsNullOrWhiteSpace(sanitizedName))
+        {
+            return false;
+        }
+
+        var rootFolder = await GetOrPromptForSongFolderAsync(ActiveLibraryMode);
+        if (rootFolder is null)
+        {
+            return false;
+        }
+
+        var folder = await GetFolderByRelativePathAsync(rootFolder, normalizedPath);
         if (folder is null)
         {
             return false;
         }
 
-        var item = await folder.TryGetItemAsync(song.FileName);
-        if (item is not StorageFile file)
+        await folder.RenameAsync(sanitizedName, NameCollisionOption.FailIfExists);
+        return true;
+    }
+
+    public static async Task<bool> DeleteFolderAsync(string relativePath)
+    {
+        var normalized = NormalizeRelativeFolderPath(relativePath);
+        if (string.IsNullOrWhiteSpace(normalized))
         {
             return false;
         }
 
-        await file.DeleteAsync(StorageDeleteOption.PermanentDelete);
+        var rootFolder = await GetOrPromptForSongFolderAsync(ActiveLibraryMode);
+        if (rootFolder is null)
+        {
+            return false;
+        }
+
+        var folder = await GetFolderByRelativePathAsync(rootFolder, normalized);
+        if (folder is null)
+        {
+            return false;
+        }
+
+        await folder.DeleteAsync(StorageDeleteOption.Default);
+        return true;
+    }
+
+    public static async Task<bool> MoveSongAsync(SongDocument song, string targetFolderPath)
+    {
+        var normalizedTargetFolderPath = NormalizeRelativeFolderPath(targetFolderPath);
+        var sourceFolderPath = song.RelativeFolderPath;
+
+        if (string.Equals(sourceFolderPath, normalizedTargetFolderPath, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (string.IsNullOrWhiteSpace(song.FileName))
+        {
+            song.RelativeFolderPath = normalizedTargetFolderPath;
+            return true;
+        }
+
+        var rootFolder = await GetOrPromptForSongFolderAsync(ActiveLibraryMode);
+        if (rootFolder is null)
+        {
+            return false;
+        }
+
+        var sourceRelativeFilePath = CombineRelativePath(sourceFolderPath, song.FileName);
+        var sourceFile = await TryGetStorageFileAsync(rootFolder, sourceRelativeFilePath);
+        if (sourceFile is null)
+        {
+            return false;
+        }
+
+        var destinationFolder = await GetFolderByRelativePathAsync(rootFolder, normalizedTargetFolderPath, createIfMissing: true);
+        if (destinationFolder is null)
+        {
+            return false;
+        }
+
+        var movedFile = await sourceFile.CopyAsync(destinationFolder, song.FileName, NameCollisionOption.GenerateUniqueName);
+        await sourceFile.DeleteAsync(StorageDeleteOption.Default);
+
+        var sourceHtmlRelativePath = Path.ChangeExtension(sourceRelativeFilePath, ".html");
+        var sourceHtmlFile = await TryGetStorageFileAsync(rootFolder, sourceHtmlRelativePath);
+        if (sourceHtmlFile is not null)
+        {
+            var targetHtmlName = Path.ChangeExtension(movedFile.Name, ".html");
+            var movedHtmlFile = await sourceHtmlFile.CopyAsync(destinationFolder, targetHtmlName, NameCollisionOption.ReplaceExisting);
+            await sourceHtmlFile.DeleteAsync(StorageDeleteOption.Default);
+            _ = movedHtmlFile;
+        }
+
+        song.RelativeFolderPath = normalizedTargetFolderPath;
+        song.FileName = movedFile.Name;
+        var properties = await movedFile.GetBasicPropertiesAsync();
+        song.LastModified = properties.DateModified;
         return true;
     }
 
@@ -230,49 +386,55 @@ public static class SongStorageService
         return $"{modeLabel}: {folder.Name}";
     }
 
-    private static async Task<bool> SaveSongToFolderAsync(SongDocument song, StorageFolder folder, bool saveAsCopy)
+    private static async Task<bool> SaveSongToFolderAsync(SongDocument song, StorageFolder rootFolder, bool saveAsCopy)
     {
         EnsureCreatorDirective(song);
         ApplyMetadataFromChordPro(song);
+        song.RelativeFolderPath = NormalizeRelativeFolderPath(song.RelativeFolderPath);
 
-        var previousFileName = song.FileName;
+        var targetSongFolder = await GetFolderByRelativePathAsync(rootFolder, song.RelativeFolderPath, createIfMissing: true);
+        if (targetSongFolder is null)
+        {
+            return false;
+        }
+
+        var previousRelativeFilePath = song.RelativeFilePath;
         var targetFileName = BuildFileName(song.Title);
 
         if (saveAsCopy)
         {
-            targetFileName = await BuildUniqueCopyFileNameAsync(folder, targetFileName);
+            targetFileName = await BuildUniqueCopyFileNameAsync(targetSongFolder, targetFileName);
         }
 
-        var file = await folder.CreateFileAsync(targetFileName, CreationCollisionOption.ReplaceExisting);
+        var file = await targetSongFolder.CreateFileAsync(targetFileName, CreationCollisionOption.ReplaceExisting);
         await FileIO.WriteTextAsync(file, song.ChordPro);
         song.FileName = file.Name;
 
         if (ExportSettingsService.ExportHtmlOnSave)
         {
-            await ExportHtmlCompanionAsync(song, folder);
+            await ExportHtmlCompanionAsync(song, targetSongFolder);
         }
 
         // Create timestamped backup after successful save
         if (!saveAsCopy)
         {
-            await BackupService.CreateBackupAsync(song.FileName, song.ChordPro);
+            await BackupService.CreateBackupAsync(song.RelativeFilePath, song.ChordPro);
         }
 
         if (!saveAsCopy
-            && !string.IsNullOrWhiteSpace(previousFileName)
-            && !string.Equals(previousFileName, targetFileName, StringComparison.OrdinalIgnoreCase))
+            && !string.IsNullOrWhiteSpace(previousRelativeFilePath)
+            && !string.Equals(previousRelativeFilePath, song.RelativeFilePath, StringComparison.OrdinalIgnoreCase))
         {
-            var previousItem = await folder.TryGetItemAsync(previousFileName);
-            if (previousItem is StorageFile previousFile)
+            var previousFile = await TryGetStorageFileAsync(rootFolder, previousRelativeFilePath);
+            if (previousFile is not null)
             {
-                await previousFile.DeleteAsync(StorageDeleteOption.PermanentDelete);
+                await previousFile.DeleteAsync(StorageDeleteOption.Default);
             }
 
-            var previousHtmlName = Path.ChangeExtension(previousFileName, ".html");
-            var previousHtmlItem = await folder.TryGetItemAsync(previousHtmlName);
-            if (previousHtmlItem is StorageFile previousHtmlFile)
+            var previousHtmlFile = await TryGetStorageFileAsync(rootFolder, Path.ChangeExtension(previousRelativeFilePath, ".html"));
+            if (previousHtmlFile is not null)
             {
-                await previousHtmlFile.DeleteAsync(StorageDeleteOption.PermanentDelete);
+                await previousHtmlFile.DeleteAsync(StorageDeleteOption.Default);
             }
         }
 
@@ -405,19 +567,6 @@ public static class SongStorageService
             : ExampleSeededLocalSettingKey;
     }
 
-    private static async Task EnsureExampleSongExistsAsync(StorageFolder folder)
-    {
-        var exampleFileName = BuildFileName(ExampleSongTitle);
-        var existing = await folder.TryGetItemAsync(exampleFileName);
-        if (existing is not null)
-        {
-            return;
-        }
-
-        var file = await folder.CreateFileAsync(exampleFileName, CreationCollisionOption.FailIfExists);
-        await FileIO.WriteTextAsync(file, GetExampleSongChordPro());
-    }
-
     private static string GetExampleSongChordPro()
     {
         return """
@@ -462,6 +611,50 @@ E|----------------|
 
 {c: End of example}
 """;
+    }
+
+    private static async Task LoadSongsRecursiveAsync(StorageFolder folder, string relativeFolderPath, List<SongDocument> songs)
+    {
+        var files = await folder.GetFilesAsync();
+        foreach (var file in files.Where(IsSongFile))
+        {
+            var content = await FileIO.ReadTextAsync(file);
+            var song = CreateSongFromChordPro(content);
+            song.FileName = file.Name;
+            song.RelativeFolderPath = relativeFolderPath;
+            var properties = await file.GetBasicPropertiesAsync();
+            song.LastModified = properties.DateModified;
+            songs.Add(song);
+        }
+
+        var childFolders = await folder.GetFoldersAsync();
+        foreach (var childFolder in childFolders.OrderBy(item => item.Name, StringComparer.CurrentCultureIgnoreCase))
+        {
+            await LoadSongsRecursiveAsync(childFolder, CombineRelativePath(relativeFolderPath, childFolder.Name), songs);
+        }
+    }
+
+    private static async Task<int> PopulateFolderTreeAsync(StorageFolder folder, SongFolder node)
+    {
+        var files = await folder.GetFilesAsync();
+        node.DirectSongCount = files.Count(IsSongFile);
+        var totalSongCount = node.DirectSongCount;
+
+        var childFolders = await folder.GetFoldersAsync();
+        foreach (var childFolder in childFolders.OrderBy(item => item.Name, StringComparer.CurrentCultureIgnoreCase))
+        {
+            var childNode = new SongFolder
+            {
+                Name = childFolder.Name,
+                RelativePath = CombineRelativePath(node.RelativePath, childFolder.Name)
+            };
+
+            node.Children.Add(childNode);
+            totalSongCount += await PopulateFolderTreeAsync(childFolder, childNode);
+        }
+
+        node.TotalSongCount = totalSongCount;
+        return totalSongCount;
     }
 
     private static SongDocument CreateSongFromChordPro(string chordPro)
@@ -524,6 +717,147 @@ E|----------------|
 
         value = inner[(separatorIndex + 1)..].Trim();
         return value.Length > 0;
+    }
+
+    private static string UpsertDirective(string chordPro, string directiveName, string value)
+    {
+        var lines = chordPro.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n').ToList();
+        var replacement = $"{{{directiveName}: {value}}}";
+        var replaced = false;
+
+        for (var i = 0; i < lines.Count; i++)
+        {
+            var line = lines[i].Trim();
+            if (!Regex.IsMatch(line, $@"^\{{\s*(?:{Regex.Escape(directiveName)}|t)\s*:", RegexOptions.IgnoreCase))
+            {
+                continue;
+            }
+
+            if (!replaced)
+            {
+                lines[i] = replacement;
+                replaced = true;
+            }
+            else
+            {
+                lines.RemoveAt(i);
+                i--;
+            }
+        }
+
+        if (!replaced)
+        {
+            lines.Insert(0, replacement);
+        }
+
+        return string.Join("\n", lines);
+    }
+
+    private static async Task<StorageFolder?> GetFolderByRelativePathAsync(StorageFolder rootFolder, string relativePath, bool createIfMissing = false)
+    {
+        var normalizedPath = NormalizeRelativeFolderPath(relativePath);
+        if (string.IsNullOrWhiteSpace(normalizedPath))
+        {
+            return rootFolder;
+        }
+
+        StorageFolder current = rootFolder;
+        foreach (var segment in normalizedPath.Split('\\', StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (createIfMissing)
+            {
+                current = await current.CreateFolderAsync(segment, CreationCollisionOption.OpenIfExists);
+                continue;
+            }
+
+            var next = await current.TryGetItemAsync(segment);
+            if (next is not StorageFolder nextFolder)
+            {
+                return null;
+            }
+
+            current = nextFolder;
+        }
+
+        return current;
+    }
+
+    private static async Task<StorageFile?> TryGetSongFileAsync(StorageFolder rootFolder, SongDocument song)
+    {
+        return await TryGetStorageFileAsync(rootFolder, song.RelativeFilePath);
+    }
+
+    private static async Task<StorageFile?> TryGetStorageFileAsync(StorageFolder rootFolder, string? relativeFilePath)
+    {
+        if (string.IsNullOrWhiteSpace(relativeFilePath))
+        {
+            return null;
+        }
+
+        var normalizedPath = relativeFilePath.Replace('/', '\\').Trim('\\');
+        var folderPath = NormalizeRelativeFolderPath(Path.GetDirectoryName(normalizedPath) ?? string.Empty);
+        var fileName = Path.GetFileName(normalizedPath);
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            return null;
+        }
+
+        var folder = await GetFolderByRelativePathAsync(rootFolder, folderPath);
+        if (folder is null)
+        {
+            return null;
+        }
+
+        var item = await folder.TryGetItemAsync(fileName);
+        return item as StorageFile;
+    }
+
+    private static bool IsSongFile(StorageFile file)
+    {
+        return string.Equals(file.FileType, ".cho", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string NormalizeRelativeFolderPath(string? relativeFolderPath)
+    {
+        if (string.IsNullOrWhiteSpace(relativeFolderPath))
+        {
+            return string.Empty;
+        }
+
+        return relativeFolderPath
+            .Trim()
+            .Replace('/', '\\')
+            .Trim('\\');
+    }
+
+    private static string CombineRelativePath(string? left, string? right)
+    {
+        var normalizedLeft = NormalizeRelativeFolderPath(left);
+        var normalizedRight = NormalizeRelativeFolderPath(right);
+
+        if (string.IsNullOrWhiteSpace(normalizedLeft))
+        {
+            return normalizedRight;
+        }
+
+        if (string.IsNullOrWhiteSpace(normalizedRight))
+        {
+            return normalizedLeft;
+        }
+
+        return $"{normalizedLeft}\\{normalizedRight}";
+    }
+
+    private static string BuildFolderName(string name)
+    {
+        var fallback = string.IsNullOrWhiteSpace(name) ? string.Empty : name.Trim();
+        if (fallback.Length == 0)
+        {
+            return string.Empty;
+        }
+
+        var invalid = Path.GetInvalidFileNameChars();
+        return new string(fallback.Select(ch => invalid.Contains(ch) ? '_' : ch).ToArray());
     }
 
     private static string BuildFileName(string title)

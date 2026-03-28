@@ -38,6 +38,29 @@ namespace Lyrical
         public App()
         {
             InitializeComponent();
+            this.UnhandledException += App_UnhandledException;
+        }
+
+        private async void App_UnhandledException(object sender, Microsoft.UI.Xaml.UnhandledExceptionEventArgs e)
+        {
+            e.Handled = true;
+
+            try
+            {
+                var dialog = new ContentDialog
+                {
+                    XamlRoot = MainAppWindow?.Content?.XamlRoot,
+                    Title = "Something went wrong",
+                    Content = $"An unexpected error occurred:\n\n{e.Exception?.Message}",
+                    CloseButtonText = "OK"
+                };
+
+                await dialog.ShowAsync();
+            }
+            catch
+            {
+                // Dialog itself failed — nothing more we can do
+            }
         }
 
         /// <summary>

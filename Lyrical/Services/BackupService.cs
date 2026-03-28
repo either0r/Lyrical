@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Windows.Storage;
@@ -11,7 +12,7 @@ public static class BackupService
     private const string HistoryFolderName = ".history";
     private const int MaxBackupsPerSong = 10;
 
-    public static async Task CreateBackupAsync(string fileName, string content)
+    public static async Task CreateBackupAsync(string filePath, string content)
     {
         try
         {
@@ -21,15 +22,15 @@ public static class BackupService
                 return;
             }
 
-            var baseName = System.IO.Path.GetFileNameWithoutExtension(fileName);
-            var ext = System.IO.Path.GetExtension(fileName);
+            var backupKey = BuildBackupKey(filePath);
+            var ext = Path.GetExtension(filePath);
             var timestamp = DateTimeOffset.Now.ToString("yyyy-MM-dd'T'HH-mm-ss");
-            var backupFileName = $"{baseName}~{timestamp}{ext}";
+            var backupFileName = $"{backupKey}~{timestamp}{ext}";
 
             var backupFile = await historyFolder.CreateFileAsync(backupFileName, CreationCollisionOption.ReplaceExisting);
             await FileIO.WriteTextAsync(backupFile, content);
 
-            await CleanupOldBackupsAsync(historyFolder, baseName, ext);
+            await CleanupOldBackupsAsync(historyFolder, backupKey, ext);
         }
         catch
         {
@@ -37,7 +38,7 @@ public static class BackupService
         }
     }
 
-    public static async Task<IReadOnlyList<BackupInfo>> GetBackupsAsync(string fileName)
+    public static async Task<IReadOnlyList<BackupInfo>> GetBackupsAsync(string filePath)
     {
         try
         {
@@ -47,9 +48,9 @@ public static class BackupService
                 return [];
             }
 
-            var baseName = System.IO.Path.GetFileNameWithoutExtension(fileName);
-            var ext = System.IO.Path.GetExtension(fileName);
-            var pattern = $"{baseName}~";
+            var backupKey = BuildBackupKey(filePath);
+            var ext = Path.GetExtension(filePath);
+            var pattern = $"{backupKey}~";
 
             var files = await historyFolder.GetFilesAsync();
             var backups = files
@@ -123,11 +124,11 @@ public static class BackupService
         }
     }
 
-    private static async Task CleanupOldBackupsAsync(StorageFolder historyFolder, string baseName, string ext)
+    private static async Task CleanupOldBackupsAsync(StorageFolder historyFolder, string backupKey, string ext)
     {
         try
         {
-            var pattern = $"{baseName}~";
+            var pattern = $"{backupKey}~";
             var files = await historyFolder.GetFilesAsync();
             var matching = files
                 .Where(f => f.Name.StartsWith(pattern) && f.Name.EndsWith(ext))
@@ -146,6 +147,30 @@ public static class BackupService
         }
     }
 
+    private static string BuildBackupKey(string filePath)
+    {
+        var normalizedPath = filePath.Replace('/', '\\').Trim('\\');
+        if (string.IsNullOrWhiteSpace(normalizedPath))
+        {
+            normalizedPath = "Untitled Song.cho";
+        }
+
+        var segments = normalizedPath.Split('\\', StringSplitOptions.RemoveEmptyEntries).ToList();
+        if (segments.Count == 0)
+        {
+            segments.Add("Untitled Song.cho");
+        }
+
+        segments[^1] = Path.GetFileNameWithoutExtension(segments[^1]);
+        return string.Join("__", segments.Select(SanitizeSegment));
+    }
+
+    private static string SanitizeSegment(string value)
+    {
+        var invalid = Path.GetInvalidFileNameChars();
+        return new string(value.Select(ch => invalid.Contains(ch) ? '_' : ch).ToArray());
+    }
+
     private static string ExtractTimestamp(string fileName)
     {
         var start = fileName.LastIndexOf('~');
@@ -161,11 +186,10 @@ public static class BackupService
         }
 
         var raw = fileName[(start + 1)..end];
-        // Parse "2025-01-15T14-32-45" → human readable
         if (raw.Length >= 10)
         {
-            var date = raw[..10]; // "2025-01-15"
-            var time = raw[11..].Replace('-', ':'); // "14:32:45"
+            var date = raw[..10];
+            var time = raw[11..].Replace('-', ':');
             return $"{date} {time}";
         }
 

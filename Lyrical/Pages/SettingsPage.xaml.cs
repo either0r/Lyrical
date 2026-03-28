@@ -34,6 +34,7 @@ public sealed partial class SettingsPage : Page
         LoadAutoSaveSettings();
         await LoadLibrarySettingsAsync();
         LoadUpdateSettings();
+        LoadShortcutSettings();
         RefreshList();
     }
 
@@ -243,6 +244,42 @@ public sealed partial class SettingsPage : Page
     private void UpdateAutoSaveDelayEnabledState()
     {
         AutoSaveDelayNumberBox.IsEnabled = AutoSaveModeComboBox.SelectedIndex == 2;
+    }
+
+    // ── Desktop shortcut ───────────────────────────────────────────────────────
+
+    private void LoadShortcutSettings()
+    {
+        var exists = DesktopShortcutService.ShortcutExists;
+        ShortcutStatusText.Text = exists
+            ? "A Lyrical shortcut is on your desktop."
+            : "No desktop shortcut is currently set up.";
+        CreateShortcutButton.IsEnabled = !exists;
+        RemoveShortcutButton.IsEnabled = exists;
+    }
+
+    private void CreateShortcutButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (DesktopShortcutService.CreateShortcut())
+        {
+            LoadShortcutSettings();
+        }
+        else
+        {
+            ShortcutStatusText.Text = "Could not create the shortcut. Check app permissions.";
+        }
+    }
+
+    private void RemoveShortcutButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (DesktopShortcutService.RemoveShortcut())
+        {
+            LoadShortcutSettings();
+        }
+        else
+        {
+            ShortcutStatusText.Text = "Could not remove the shortcut.";
+        }
     }
 
     // ── Edit mode helpers ─────────────────────────────────────────────────────

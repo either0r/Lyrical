@@ -67,6 +67,7 @@ public sealed partial class SongEditorPage : Page
 
         _hasPendingChanges = false;
         _autoSaveTimer.Stop();
+        UpdateSongHeader();
     }
 
     protected override void OnNavigatedFrom(NavigationEventArgs e)
@@ -81,6 +82,7 @@ public sealed partial class SongEditorPage : Page
         if (_song.ChordPro != EditorTextBox.Text)
         {
             _song.ChordPro = EditorTextBox.Text;
+            ApplyMetadataFromChordPro(_song);
         }
 
         if (_isInitializing)
@@ -89,6 +91,9 @@ public sealed partial class SongEditorPage : Page
         }
 
         _hasPendingChanges = true;
+        _hasExternalConflict = false;
+        UpdateSongHeader();
+
         if (EditorSettingsService.AutoSaveMode == AutoSaveMode.AfterDelay)
         {
             _autoSaveTimer.Interval = TimeSpan.FromSeconds(EditorSettingsService.AutoSaveDelaySeconds);
@@ -129,6 +134,7 @@ public sealed partial class SongEditorPage : Page
         if (conflict.HasConflict)
         {
             _hasExternalConflict = true;
+            UpdateSongHeader();
             return;
         }
 
@@ -140,6 +146,7 @@ public sealed partial class SongEditorPage : Page
             {
                 _hasPendingChanges = false;
                 _hasExternalConflict = false;
+                UpdateSongHeader();
             }
         }
         finally
@@ -299,7 +306,7 @@ public sealed partial class SongEditorPage : Page
 
     private void CloseCurrentDocumentButton_Click(object sender, RoutedEventArgs e)
     {
-
+        BackButton_Click(sender, e);
     }
 
     private async void BackButton_Click(object sender, RoutedEventArgs e)
@@ -339,7 +346,7 @@ public sealed partial class SongEditorPage : Page
         Frame?.Navigate(typeof(SongListPage));
     }
 
-    private async System.Threading.Tasks.Task SaveSongAsync()
+    private async System.Threading.Tasks.Task SaveSongAsync(bool showConfirmation = true)
     {
         var conflict = await SongStorageService.CheckForExternalChangeAsync(_song);
         bool saved;
@@ -347,6 +354,7 @@ public sealed partial class SongEditorPage : Page
         if (conflict.HasConflict)
         {
             _hasExternalConflict = true;
+            UpdateSongHeader();
 
             var resolution = await ShowConflictDialogAsync(conflict);
             if (resolution == ConflictResolution.Reload)
@@ -371,17 +379,24 @@ public sealed partial class SongEditorPage : Page
             _autoSaveTimer.Stop();
         }
 
-        var dialog = new ContentDialog
-        {
-            XamlRoot = XamlRoot,
-            Title = saved ? "Song saved" : "Save cancelled",
-            Content = saved
-                ? "Your song was saved. It will appear in Songs list."
-                : "No folder was selected. Save was cancelled.",
-            CloseButtonText = "OK"
-        };
+        UpdateSongHeader();
 
-        await dialog.ShowAsync();
+        if (showConfirmation)
+        {
+            var folderDisplay = string.IsNullOrWhiteSpace(_song.RelativeFolderPath) ? "Library Root" : _song.RelativeFolderPath;
+            var saveTarget = string.IsNullOrWhiteSpace(_song.FileName) ? folderDisplay : $"{folderDisplay}\\{_song.FileName}";
+            var dialog = new ContentDialog
+            {
+                XamlRoot = XamlRoot,
+                Title = saved ? "Song saved" : "Save cancelled",
+                Content = saved
+                    ? $"Saved to {saveTarget}."
+                    : "No folder was selected. Save was cancelled.",
+                CloseButtonText = "OK"
+            };
+
+            await dialog.ShowAsync();
+        }
     }
 
     private void SaveButton_Click(object sender, RoutedEventArgs e)
@@ -420,6 +435,7 @@ public sealed partial class SongEditorPage : Page
             }
 
             RefreshPreview();
+            UpdateSongHeader();
             return;
         }
 
@@ -427,6 +443,15 @@ public sealed partial class SongEditorPage : Page
         {
             DiagramPlacementComboBox.SelectedIndex = _song.ChordDiagramPlacement == ChordDiagramPlacement.Top ? 0 : 1;
             ApplyDiagramPlacement();
+            return;
+        }
+
+        if (e.PropertyName is nameof(SongDocument.Title)
+            or nameof(SongDocument.FileName)
+            or nameof(SongDocument.RelativeFolderPath)
+            or nameof(SongDocument.LastModified))
+        {
+            UpdateSongHeader();
         }
     }
 
@@ -512,26 +537,12 @@ public sealed partial class SongEditorPage : Page
         _hasPendingChanges = false;
         _hasExternalConflict = false;
         _autoSaveTimer.Stop();
+        UpdateSongHeader();
     }
 
     private async void SaveSongButton_Click(object sender, RoutedEventArgs e)
     {
         await SaveSongAsync();
-
-        var conflict = await SongStorageService.CheckForExternalChangeAsync(_song);
-        var saved = !_hasPendingChanges;
-
-        var dialog = new ContentDialog
-        {
-            XamlRoot = XamlRoot,
-            Title = saved ? "Song saved" : "Save cancelled",
-            Content = saved
-                ? "Your song was saved. It will appear in Songs list."
-                : "No folder was selected. Save was cancelled.",
-            CloseButtonText = "OK"
-        };
-
-        await dialog.ShowAsync();
     }
 
     private void SetHelpTextBlock(object sender, RoutedEventArgs e)
@@ -552,7 +563,7 @@ public sealed partial class SongEditorPage : Page
             return;
         }
 
-        var backups = await BackupService.GetBackupsAsync(_song.FileName);
+        var backups = await BackupService.GetBackupsAsync(_song.RelativeFilePath);
         if (backups.Count == 0)
         {
             var emptyDialog = new ContentDialog
@@ -586,6 +597,8 @@ public sealed partial class SongEditorPage : Page
         _isInitializing = false;
 
         _hasPendingChanges = true;
+        _hasExternalConflict = false;
+        UpdateSongHeader();
 
         var confirmDialog = new ContentDialog
         {
@@ -677,6 +690,34 @@ public sealed partial class SongEditorPage : Page
                 song.Key = directiveValue;
             }
         }
+    }
+
+    private void UpdateSongHeader()
+    {
+        SongTitleText.Text = string.IsNullOrWhiteSpace(_song.Title)
+            ? "Untitled"
+            : _song.Title;
+
+        var folderDisplay = string.IsNullOrWhiteSpace(_song.RelativeFolderPath)
+            ? "Library Root"
+            : _song.RelativeFolderPath;
+
+        SongLocationText.Text = string.IsNullOrWhiteSpace(_song.FileName)
+            ? $"New song in {folderDisplay}"
+            : $"{folderDisplay} • {_song.FileName}";
+
+        SongStatusText.Text = _hasExternalConflict
+            ? "Shared changes detected"
+            : _hasPendingChanges
+                ? "Unsaved changes"
+                : string.IsNullOrWhiteSpace(_song.FileName)
+                    ? "Not saved yet"
+                    : $"Saved { _song.LastModifiedText}";
+    }
+
+    public async System.Threading.Tasks.Task TriggerSaveAsync()
+    {
+        await SaveSongAsync(showConfirmation: false);
     }
 
     public void TriggerSave()

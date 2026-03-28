@@ -12,6 +12,7 @@ namespace Lyrical
     public sealed partial class MainWindow : Window
     {
         private bool _didRunInitialUpdateCheck;
+        private bool _isForceClosing;
 
         public MainWindow()
         {
@@ -42,31 +43,51 @@ namespace Lyrical
             _didRunInitialUpdateCheck = true;
 
             var check = await AppUpdateService.CheckForUpdateAsync(force: false);
-            if (!check.IsChecked || !check.IsUpdateAvailable)
+            if (check.IsChecked && check.IsUpdateAvailable)
             {
-                return;
+                var dialog = new ContentDialog
+                {
+                    XamlRoot = Content.XamlRoot,
+                    Title = "Update available",
+                    Content = $"A newer version ({check.LatestVersion}) is available. You are on {check.CurrentVersion}.",
+                    PrimaryButtonText = "Open download page",
+                    CloseButtonText = "Later"
+                };
+
+                var result = await dialog.ShowAsync();
+                AppUpdateService.MarkVersionNotified(check.LatestVersion);
+
+                if (result == ContentDialogResult.Primary)
+                {
+                    _ = await Launcher.LaunchUriAsync(new System.Uri(check.ReleaseUrl));
+                }
             }
 
-            var dialog = new ContentDialog
+            if (!DesktopShortcutService.HasPrompted && !DesktopShortcutService.ShortcutExists)
             {
-                XamlRoot = Content.XamlRoot,
-                Title = "Update available",
-                Content = $"A newer version ({check.LatestVersion}) is available. You are on {check.CurrentVersion}.",
-                PrimaryButtonText = "Open download page",
-                CloseButtonText = "Later"
-            };
+                DesktopShortcutService.HasPrompted = true;
 
-            var result = await dialog.ShowAsync();
-            AppUpdateService.MarkVersionNotified(check.LatestVersion);
+                var shortcutDialog = new ContentDialog
+                {
+                    XamlRoot = Content.XamlRoot,
+                    Title = "Add desktop shortcut?",
+                    Content = "Would you like to add a Lyrical shortcut to your desktop?",
+                    PrimaryButtonText = "Yes",
+                    CloseButtonText = "No"
+                };
 
-            if (result == ContentDialogResult.Primary)
-            {
-                _ = await Launcher.LaunchUriAsync(new System.Uri(check.ReleaseUrl));
+                if (await shortcutDialog.ShowAsync() == ContentDialogResult.Primary)
+                {
+                    DesktopShortcutService.CreateShortcut();
+                }
             }
         }
 
         private async void MainWindow_Closed(object sender, WindowEventArgs args)
         {
+            if (_isForceClosing)
+                return;
+
             if (RootFrame.Content is SongEditorPage editor && editor.HasPendingChanges)
             {
                 args.Handled = true;
@@ -85,10 +106,13 @@ namespace Lyrical
                 var result = await dialog.ShowAsync();
                 if (result == ContentDialogResult.Primary)
                 {
-                    editor.TriggerSave();
+                    await editor.TriggerSaveAsync();
+                    _isForceClosing = true;
+                    this.Close();
                 }
                 else if (result == ContentDialogResult.Secondary)
                 {
+                    _isForceClosing = true;
                     this.Close();
                 }
             }

@@ -15,7 +15,10 @@ public partial class SongDocument : INotifyPropertyChanged
     private string _createdBy = "Unknown";
     private ChordDiagramPlacement _chordDiagramPlacement = ChordDiagramPlacement.Bottom;
     private string? _fileName;
+    private string _relativeFolderPath = string.Empty;
     private DateTimeOffset _lastModified = DateTimeOffset.Now;
+
+    private string _folderLabel = "Location: ";
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -58,8 +61,38 @@ public partial class SongDocument : INotifyPropertyChanged
     public string? FileName
     {
         get => _fileName;
-        set => SetProperty(ref _fileName, value);
+        set
+        {
+            if (SetProperty(ref _fileName, value))
+            {
+                OnPropertyChanged(nameof(RelativeFilePath));
+            }
+        }
     }
+
+    public string RelativeFolderPath
+    {
+        get => _relativeFolderPath;
+        set
+        {
+            var normalized = NormalizeRelativeFolderPath(value);
+            if (SetProperty(ref _relativeFolderPath, normalized))
+            {
+                OnPropertyChanged(nameof(FolderDisplayName));
+                OnPropertyChanged(nameof(RelativeFilePath));
+            }
+        }
+    }
+
+    public string FolderDisplayName => string.IsNullOrWhiteSpace(RelativeFolderPath)
+        ? _folderLabel + "Library Root"
+        : _folderLabel + RelativeFolderPath;
+
+    public string RelativeFilePath => string.IsNullOrWhiteSpace(FileName)
+        ? RelativeFolderPath
+        : string.IsNullOrWhiteSpace(RelativeFolderPath)
+            ? FileName
+            : $"{RelativeFolderPath}\\{FileName}";
 
     public DateTimeOffset LastModified
     {
@@ -75,11 +108,12 @@ public partial class SongDocument : INotifyPropertyChanged
 
     public string LastModifiedText => LastModified.LocalDateTime.ToString("M/dd/yyyy h:mm tt", CultureInfo.CurrentCulture);
 
-    public static SongDocument CreateNew(string title = "Untitled")
+    public static SongDocument CreateNew(string title = "Untitled", string relativeFolderPath = "")
     {
         return new SongDocument
         {
             Title = title,
+            RelativeFolderPath = relativeFolderPath,
             ChordPro = $"{{title: {title}}}\n"
         };
     }
@@ -94,5 +128,23 @@ public partial class SongDocument : INotifyPropertyChanged
         storage = value;
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         return true;
+    }
+
+    private void OnPropertyChanged(string propertyName)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
+
+    private static string NormalizeRelativeFolderPath(string? relativeFolderPath)
+    {
+        if (string.IsNullOrWhiteSpace(relativeFolderPath))
+        {
+            return string.Empty;
+        }
+
+        return relativeFolderPath
+            .Trim()
+            .Replace('/', '\\')
+            .Trim('\\');
     }
 }

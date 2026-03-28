@@ -14,96 +14,123 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <Grid ColumnSpacing="12">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="*" />
-            </Grid.ColumnDefinitions>
-
+        <StackPanel Spacing="12">
             <Grid ColumnSpacing="12">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
 
-                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="0">
-                    <Button Click="BackButton_Click" Style="{ThemeResource SubtleButtonStyle}">
-                        <FontIcon Glyph="&#xE72B;"/>
-                    </Button>
-                    <Button Click="SaveButton_Click" Style="{ThemeResource SubtleButtonStyle}">
-                        <FontIcon Glyph="&#xE74E;"/>
-                        <Button.KeyboardAccelerators>
-                            <KeyboardAccelerator Modifiers="Control" Key="S"/>
-                        </Button.KeyboardAccelerators>
-                    </Button>
-                </StackPanel>
-                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
-                    <Button Style="{ThemeResource SubtleButtonStyle}">
-                        <FontIcon Glyph="&#xE710;"/>
-                        <Button.Flyout>
-                            <Flyout Placement="Bottom" x:Name="AddCommandBarFlyout">
-                                <StackPanel>
-                                    <AppBarButton Label="Insert Capo" Click="InsertCapoButton_Click" />
-                                    <AppBarButton Label="Insert Chorus" Click="InsertChorusBlockButton_Click" />
-                                    <AppBarButton Label="Insert Verse" Click="InsertVerseBlockButton_Click" />
-                                    <AppBarButton Label="Insert Tab" Click="InsertTabBlockButton_Click" />
-                                    <AppBarButton Label="Insert Subtitle" Click="InsertMetadataButton_Click" />
-                                </StackPanel>
-                            </Flyout>
-                        </Button.Flyout>
-                    </Button>
+                <Grid ColumnSpacing="12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
 
-                    <AutoSuggestBox
-                        x:Name="SimilarSoundSearchBox"
-                        Width="280"
-                        PlaceholderText="Search for rhymes..."
-                        TextChanged="SimilarSoundSearchBox_TextChanged"
-                        QuerySubmitted="SimilarSoundSearchBox_QuerySubmitted" />
-                </StackPanel>
-                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
-                    <Button Click="SetHelpTextBlock" Style="{ThemeResource SubtleButtonStyle}">
-                        <FontIcon Glyph="&#xE897;"/>
-                        <Button.Flyout>
-                            <Flyout Placement="Bottom" x:Name="HelpCommandFlyout">
-                                <Flyout.FlyoutPresenterStyle>
-                                    <Style TargetType="FlyoutPresenter">
-                                        <Setter Property="ScrollViewer.HorizontalScrollMode" Value="Disabled"/>
-                                        <Setter Property="MinWidth" Value="700"/>
-                                        <Setter Property="MaxWidth" Value="700"/>
-                                        <Setter Property="Padding" Value="8"/>
-                                    </Style>
-                                </Flyout.FlyoutPresenterStyle>
-                                <StackPanel>
-                                    <TextBlock x:Name="HelpTextBlock" Width="600" TextWrapping="NoWrap" TextAlignment="Left" Style="{ThemeResource BaseTextBlockStyle}" />
-                                </StackPanel>
-                            </Flyout>
-                        </Button.Flyout>
-                    </Button>
-                    <Button Click="RestoreBackupButton_Click" Style="{ThemeResource SubtleButtonStyle}">
-                        <ToolTipService.ToolTip>
-                            <ToolTip Content="Restore from backup history"/>
-                        </ToolTipService.ToolTip>
-                        <FontIcon Glyph="&#xE72C;"/>
-                    </Button>
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="0">
+                        <Button Click="BackButton_Click" Style="{ThemeResource SubtleButtonStyle}">
+                            <FontIcon Glyph="&#xE72B;"/>
+                        </Button>
+                        <Button Click="SaveButton_Click" Style="{ThemeResource SubtleButtonStyle}">
+                            <FontIcon Glyph="&#xE74E;"/>
+                            <Button.KeyboardAccelerators>
+                                <KeyboardAccelerator Modifiers="Control" Key="S"/>
+                            </Button.KeyboardAccelerators>
+                        </Button>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                        <Button Style="{ThemeResource SubtleButtonStyle}">
+                            <FontIcon Glyph="&#xE710;"/>
+                            <Button.Flyout>
+                                <Flyout Placement="Bottom" x:Name="AddCommandBarFlyout">
+                                    <StackPanel>
+                                        <AppBarButton Label="Insert Capo" Click="InsertCapoButton_Click" />
+                                        <AppBarButton Label="Insert Chorus" Click="InsertChorusBlockButton_Click" />
+                                        <AppBarButton Label="Insert Verse" Click="InsertVerseBlockButton_Click" />
+                                        <AppBarButton Label="Insert Tab" Click="InsertTabBlockButton_Click" />
+                                        <AppBarButton Label="Insert Subtitle" Click="InsertMetadataButton_Click" />
+                                    </StackPanel>
+                                </Flyout>
+                            </Button.Flyout>
+                        </Button>
+
+                        <AutoSuggestBox
+                            x:Name="SimilarSoundSearchBox"
+                            Width="280"
+                            PlaceholderText="Search for rhymes..."
+                            TextChanged="SimilarSoundSearchBox_TextChanged"
+                            QuerySubmitted="SimilarSoundSearchBox_QuerySubmitted" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                        <Button Click="SetHelpTextBlock" Style="{ThemeResource SubtleButtonStyle}">
+                            <FontIcon Glyph="&#xE897;"/>
+                            <Button.Flyout>
+                                <Flyout Placement="Bottom" x:Name="HelpCommandFlyout">
+                                    <Flyout.FlyoutPresenterStyle>
+                                        <Style TargetType="FlyoutPresenter">
+                                            <Setter Property="ScrollViewer.HorizontalScrollMode" Value="Disabled"/>
+                                            <Setter Property="MinWidth" Value="700"/>
+                                            <Setter Property="MaxWidth" Value="700"/>
+                                            <Setter Property="Padding" Value="8"/>
+                                        </Style>
+                                    </Flyout.FlyoutPresenterStyle>
+                                    <StackPanel>
+                                        <TextBlock x:Name="HelpTextBlock" Width="600" TextWrapping="NoWrap" TextAlignment="Left" Style="{ThemeResource BaseTextBlockStyle}" />
+                                    </StackPanel>
+                                </Flyout>
+                            </Button.Flyout>
+                        </Button>
+                        <Button Click="RestoreBackupButton_Click" Style="{ThemeResource SubtleButtonStyle}">
+                            <ToolTipService.ToolTip>
+                                <ToolTip Content="Restore from backup history"/>
+                            </ToolTipService.ToolTip>
+                            <FontIcon Glyph="&#xE72C;"/>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <ComboBox x:Name="FontSizeComboBox" Width="110" SelectionChanged="FontSizeComboBox_SelectionChanged">
+                        <ComboBoxItem Content="Font: 12" Tag="12" />
+                        <ComboBoxItem Content="Font: 14" Tag="14" />
+                        <ComboBoxItem Content="Font: 16" Tag="16" />
+                        <ComboBoxItem Content="Font: 18" Tag="18" />
+                        <ComboBoxItem Content="Font: 20" Tag="20" />
+                    </ComboBox>
+                    <ComboBox x:Name="DiagramPlacementComboBox" Width="180" SelectionChanged="DiagramPlacementComboBox_SelectionChanged" Padding="12,0,0,0">
+                        <x:String>Diagrams: Top</x:String>
+                        <x:String>Diagrams: Bottom</x:String>
+                    </ComboBox>
+                    <Button Content="Pop Out Preview" Click="PopOutPreviewButton_Click" Padding="5,5,6,6"/>
                 </StackPanel>
             </Grid>
 
-            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" VerticalAlignment="Center">
-                <ComboBox x:Name="FontSizeComboBox" Width="110" SelectionChanged="FontSizeComboBox_SelectionChanged">
-                    <ComboBoxItem Content="Font: 12" Tag="12" />
-                    <ComboBoxItem Content="Font: 14" Tag="14" />
-                    <ComboBoxItem Content="Font: 16" Tag="16" />
-                    <ComboBoxItem Content="Font: 18" Tag="18" />
-                    <ComboBoxItem Content="Font: 20" Tag="20" />
-                </ComboBox>
-                <ComboBox x:Name="DiagramPlacementComboBox" Width="180" SelectionChanged="DiagramPlacementComboBox_SelectionChanged" Padding="12,0,0,0">
-                    <x:String>Diagrams: Top</x:String>
-                    <x:String>Diagrams: Bottom</x:String>
-                </ComboBox>
-                <Button Content="Pop Out Preview" Click="PopOutPreviewButton_Click" Padding="5,5,6,6"/>
-            </StackPanel>
-        </Grid>
+            <Grid ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Spacing="2">
+                    <TextBlock
+                        x:Name="SongTitleText"
+                        Style="{StaticResource SubtitleTextBlockStyle}"
+                        Text="Untitled" />
+                    <TextBlock
+                        x:Name="SongLocationText"
+                        Opacity="0.7"
+                        TextWrapping="Wrap" />
+                </StackPanel>
+
+                <TextBlock
+                    x:Name="SongStatusText"
+                    Grid.Column="1"
+                    VerticalAlignment="Center"
+                    Opacity="0.7"
+                    TextWrapping="Wrap" />
+            </Grid>
+        </StackPanel>
 
         <Grid Grid.Row="1" ColumnSpacing="0" x:Name="EditorPreviewGrid">
             <Grid.ColumnDefinitions>
