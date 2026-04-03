@@ -184,6 +184,9 @@
                         Text="Updates"
                         Style="{StaticResource SubtitleTextBlockStyle}" />
                     <TextBlock
+                        x:Name="CurrentVersionText"
+                        Opacity="0.7" />
+                    <TextBlock
                         Text="Get notified when a newer GitHub release is available."
                         Opacity="0.7"
                         TextWrapping="Wrap" />

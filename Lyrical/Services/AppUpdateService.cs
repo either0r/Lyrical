@@ -1,6 +1,5 @@
 using System;
 using System.Net.Http;
-using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
@@ -90,8 +89,8 @@ public static class AppUpdateService
 
     private static string GetCurrentVersionText()
     {
-        var version = Assembly.GetExecutingAssembly().GetName().Version;
-        return version is null ? "0.0.0" : $"{version.Major}.{version.Minor}.{Math.Max(version.Build, 0)}";
+        var version = Windows.ApplicationModel.Package.Current.Id.Version;
+        return $"{version.Major}.{version.Minor}.{version.Build}";
     }
 
     private static string NormalizeVersionText(string tag)

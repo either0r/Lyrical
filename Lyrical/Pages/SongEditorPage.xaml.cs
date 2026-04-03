@@ -211,7 +211,7 @@ public sealed partial class SongEditorPage : Page
 
     private void InsertChorusBlockButton_Click(object sender, RoutedEventArgs e)
     {
-        InsertAtCursor("{soc}\n");
+        InsertAtCursor("{soc}\n\n{eoc}");
     }
 
     private void InsertMetadataButton_Click(object sender, RoutedEventArgs e)
@@ -221,7 +221,7 @@ public sealed partial class SongEditorPage : Page
 
     private void InsertVerseBlockButton_Click(object sender, RoutedEventArgs e)
     {
-        InsertAtCursor("{sov}\n");
+        InsertAtCursor("{sov}\n\n{eov}");
     }
 
     private void InsertCapoButton_Click(object sender, RoutedEventArgs e)
@@ -231,7 +231,74 @@ public sealed partial class SongEditorPage : Page
 
     private void InsertTabBlockButton_Click(object sender, RoutedEventArgs e)
     {
-        InsertAtCursor("{sot}\n\n{eot}\n");
+        InsertAtCursor("{sot}\ne|----------------|\nB|----------------|\nG|----------------|\nD|----------------|\nA|----------------|\nE|----------------|\n{eot}\n");
+    }
+
+    private void InsertMoreTabBlockButton_Click(object sender, RoutedEventArgs e)
+    {
+        var text = EditorTextBox.Text;
+        var cursorPos = EditorTextBox.SelectionStart;
+
+        // Normalize line endings – WinUI TextBox uses \r internally.
+        var normalized = text.Replace("\r\n", "\n").Replace('\r', '\n');
+
+        // Find the {sot}…{eot} block that contains or is nearest before the cursor.
+        int bestSot = -1;
+        int bestEot = -1;
+        int searchFrom = 0;
+
+        while (true)
+        {
+            var sotIndex = normalized.IndexOf("{sot}", searchFrom, StringComparison.OrdinalIgnoreCase);
+            if (sotIndex < 0)
+            {
+                break;
+            }
+
+            var eotIndex = normalized.IndexOf("{eot}", sotIndex, StringComparison.OrdinalIgnoreCase);
+            if (eotIndex < 0)
+            {
+                break;
+            }
+
+            if (sotIndex <= cursorPos)
+            {
+                bestSot = sotIndex;
+                bestEot = eotIndex;
+            }
+
+            searchFrom = eotIndex + 5;
+        }
+
+        if (bestSot < 0 || bestEot < 0)
+        {
+            return;
+        }
+
+        var blockStart = normalized.IndexOf('\n', bestSot);
+        if (blockStart < 0 || blockStart >= bestEot)
+        {
+            return;
+        }
+
+        blockStart++;
+
+        var blockContent = normalized[blockStart..bestEot];
+        var lines = blockContent.Split('\n');
+        const string extension = "----------------|";
+
+        for (int i = 0; i < lines.Length; i++)
+        {
+            if (lines[i].Contains('|'))
+            {
+                lines[i] = lines[i] + extension;
+            }
+        }
+
+        var newBlock = string.Join('\n', lines);
+        var result = normalized[..blockStart] + newBlock + normalized[bestEot..];
+        EditorTextBox.Text = result;
+        EditorTextBox.SelectionStart = blockStart + newBlock.Length;
     }
 
     private async void SimilarSoundSearchBox_TextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
@@ -550,7 +617,9 @@ public sealed partial class SongEditorPage : Page
         var helpTextButtonFlyout = HelpTextBlock;
         var text = "Directives\nDirectives should be placed on their own line.\n\rMeta-Data Directives\ntitle, subtitle, artist, album, year, key, tempo, capo.\n{title: Song Title}\n{subtitle: Song Subtitle}\n\nFormatting Directives\n" +
             "comment, comment_italic\n{comment: some comment here}\n {comment_italic: some comment in italic}\n\nEnvironment Directives\nEnvironment directives always come in pairs, one to start the environment and one to end it.\n" +
-            "start_of_chorus (short: soc), end_of_chorus (short: eoc)\nchorus\n" +
+            "Environment Directives can also use labels to provide more detail about that section\n" +
+            "{sov: Verse 1}\n" +
+            "start_of_chorus (short: soc), end_of_chorus (short: eoc)\nchorus, eoc\n" +
             "start_of_verse (short: sov), end_of_verse (short: eov)\n" +
             "start_of_bridge (short: sob) end_of_bridge (short: eob)\n";
         HelpTextBlock.Text = text;

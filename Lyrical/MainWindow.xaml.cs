@@ -18,6 +18,8 @@ namespace Lyrical
         {
             InitializeComponent();
 
+            AppWindow.SetIcon("Assets/StoreLogo.scale-125.ico");
+
             if (Content is FrameworkElement root)
             {
                 root.RequestedTheme = ThemeService.Current;

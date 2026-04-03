@@ -129,11 +129,15 @@ public sealed partial class SettingsPage : Page
     private void LoadUpdateSettings()
     {
         _updateSelectionReady = false;
+
+        var version = Windows.ApplicationModel.Package.Current.Id.Version;
+        CurrentVersionText.Text = $"Version: {version.Major}.{version.Minor}.{version.Build}";
+
         UpdateNotificationsCheckBox.IsChecked = UpdateSettingsService.NotificationsEnabled;
         UpdateCheckStatusText.Text = string.Empty;
         _updateSelectionReady = true;
     }
-
+    
     private void UpdateNotificationsCheckBox_Changed(object sender, RoutedEventArgs e)
     {
         if (!_updateSelectionReady)

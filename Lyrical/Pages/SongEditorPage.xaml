@@ -45,11 +45,12 @@
                             <Button.Flyout>
                                 <Flyout Placement="Bottom" x:Name="AddCommandBarFlyout">
                                     <StackPanel>
-                                        <AppBarButton Label="Insert Capo" Click="InsertCapoButton_Click" />
-                                        <AppBarButton Label="Insert Chorus" Click="InsertChorusBlockButton_Click" />
-                                        <AppBarButton Label="Insert Verse" Click="InsertVerseBlockButton_Click" />
-                                        <AppBarButton Label="Insert Tab" Click="InsertTabBlockButton_Click" />
-                                        <AppBarButton Label="Insert Subtitle" Click="InsertMetadataButton_Click" />
+                                        <AppBarButton Label="Insert Capo" Click="InsertCapoButton_Click" VerticalAlignment="Center"/>
+                                        <AppBarButton Label="Insert Chorus" Click="InsertChorusBlockButton_Click" VerticalAlignment="Center"/>
+                                        <AppBarButton Label="Insert Verse" Click="InsertVerseBlockButton_Click" VerticalAlignment="Center"/>
+                                        <AppBarButton Label="Insert Tab" Click="InsertTabBlockButton_Click" VerticalAlignment="Center"/>
+                                        <AppBarButton Label="Add More Tabs" Click="InsertMoreTabBlockButton_Click" VerticalAlignment="Center"/>
+                                        <AppBarButton Label="Insert Subtitle" Click="InsertMetadataButton_Click" VerticalAlignment="Center"/>
                                     </StackPanel>
                                 </Flyout>
                             </Button.Flyout>
@@ -76,7 +77,7 @@
                                         </Style>
                                     </Flyout.FlyoutPresenterStyle>
                                     <StackPanel>
-                                        <TextBlock x:Name="HelpTextBlock" Width="600" TextWrapping="NoWrap" TextAlignment="Left" Style="{ThemeResource BaseTextBlockStyle}" />
+                                        <TextBlock x:Name="HelpTextBlock" Width="600" TextWrapping="NoWrap" TextAlignment="Center" Style="{ThemeResource BaseTextBlockStyle}" />
                                     </StackPanel>
                                 </Flyout>
                             </Button.Flyout>

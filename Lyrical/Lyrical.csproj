@@ -66,7 +66,7 @@
     <ApplicationIcon>Assets\StoreLogo.scale-125.ico</ApplicationIcon>
     <PackageIcon>StoreLogo.scale-200.png</PackageIcon>
     <AppxPackageSigningEnabled>True</AppxPackageSigningEnabled>
-    <PackageCertificateThumbprint>4205E5A9D6860D20D577ED06AD390EAA2394E44B</PackageCertificateThumbprint>
+    <PackageCertificateThumbprint>F3D473E82EEBEB22A446D033DA77BD9C37B81385</PackageCertificateThumbprint>
     <StartupObject>Lyrical.Program</StartupObject>
     <GenerateAppInstallerFile>True</GenerateAppInstallerFile>
     <AppxPackageSigningTimestampDigestAlgorithm>SHA256</AppxPackageSigningTimestampDigestAlgorithm>
