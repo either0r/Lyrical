@@ -4,7 +4,7 @@
   <mp:PhoneIdentity PhoneProductId="bd197a99-d43b-41dd-b64b-d2f359475af4" PhonePublisherId="00000000-0000-0000-0000-000000000000" />
   <Properties>
     <DisplayName>Lyrical</DisplayName>
-    <PublisherDisplayName>eitheror</PublisherDisplayName>
+    <PublisherDisplayName>either0r</PublisherDisplayName>
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
   <Dependencies>

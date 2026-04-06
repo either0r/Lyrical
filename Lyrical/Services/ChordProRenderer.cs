@@ -188,6 +188,10 @@ public static partial class ChordProRenderer
                 AddMetaParagraph(target, $"Duration: {value}", 12, FontWeights.Normal, italic: true);
                 return true;
 
+            case "allchords":
+                AddMetaParagraph(target, $"Chords: {value}", 14, FontWeights.Normal);
+                return true;
+
             // ── Meta-data — silent (index/sort only) ──────────────────────────
             case "sorttitle":
             case "sortartist":
