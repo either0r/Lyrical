@@ -418,7 +418,7 @@ public sealed partial class SongListPage : Page
     {
         if (e.ClickedItem is SongDocument song)
         {
-            Frame.Navigate(typeof(SongEditorPage), song);
+            MainWindow.Instance?.OpenSongTab(song);
         }
     }
 
@@ -430,7 +430,7 @@ public sealed partial class SongListPage : Page
             return;
         }
 
-        Frame.Navigate(typeof(SongEditorPage), SongDocument.CreateNew(title, _selectedFolder.RelativePath));
+        MainWindow.Instance?.OpenSongTab(SongDocument.CreateNew(title, _selectedFolder.RelativePath));
     }
 
     private async void OpenFileButton_Click(object sender, RoutedEventArgs e)
@@ -455,7 +455,7 @@ public sealed partial class SongListPage : Page
         var song = await SongStorageService.LoadSongFromFileAsync(file);
         if (song != null)
         {
-            Frame.Navigate(typeof(SongEditorPage), song);
+            MainWindow.Instance?.OpenSongTab(song);
         }
         else
         {

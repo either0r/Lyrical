@@ -4,6 +4,8 @@ using Lyrical.Services;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.InteropServices.WindowsRuntime;
 using Windows.System;
 
@@ -11,11 +13,14 @@ namespace Lyrical
 {
     public sealed partial class MainWindow : Window
     {
+        public static MainWindow? Instance { get; private set; }
+
         private bool _didRunInitialUpdateCheck;
         private bool _isForceClosing;
 
         public MainWindow()
         {
+            Instance = this;
             InitializeComponent();
 
             AppWindow.SetIcon("Assets/StoreLogo.scale-125.ico");
@@ -90,17 +95,22 @@ namespace Lyrical
             if (_isForceClosing)
                 return;
 
-            if (RootFrame.Content is SongEditorPage editor && editor.HasPendingChanges)
+            var dirtyEditors = GetAllDirtyEditors();
+            if (dirtyEditors.Count > 0)
             {
                 args.Handled = true;
+
+                var message = dirtyEditors.Count == 1
+                    ? "You have unsaved changes. Do you want to save before closing?"
+                    : $"You have unsaved changes in {dirtyEditors.Count} tabs. Do you want to save all before closing?";
 
                 var dialog = new ContentDialog
                 {
                     XamlRoot = Content.XamlRoot,
                     Title = "Unsaved changes",
-                    Content = "You have unsaved changes. Do you want to save before closing?",
-                    PrimaryButtonText = "Save",
-                    SecondaryButtonText = "Discard",
+                    Content = message,
+                    PrimaryButtonText = "Save all",
+                    SecondaryButtonText = "Discard all",
                     CloseButtonText = "Cancel",
                     DefaultButton = ContentDialogButton.Primary
                 };
@@ -108,7 +118,10 @@ namespace Lyrical
                 var result = await dialog.ShowAsync();
                 if (result == ContentDialogResult.Primary)
                 {
-                    await editor.TriggerSaveAsync();
+                    foreach (var editor in dirtyEditors)
+                    {
+                        await editor.TriggerSaveAsync();
+                    }
                     _isForceClosing = true;
                     this.Close();
                 }
@@ -118,6 +131,19 @@ namespace Lyrical
                     this.Close();
                 }
             }
+        }
+
+        private List<SongEditorPage> GetAllDirtyEditors()
+        {
+            var dirty = new List<SongEditorPage>();
+            foreach (var tab in EditorTabView.TabItems.OfType<TabViewItem>())
+            {
+                if (tab.Content is Frame frame && frame.Content is SongEditorPage editor && editor.HasPendingChanges)
+                {
+                    dirty.Add(editor);
+                }
+            }
+            return dirty;
         }
 
         private async void AppNavigationView_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
@@ -130,39 +156,114 @@ namespace Lyrical
             switch (tag)
             {
                 case "songs":
+                    ShowFrameContent();
                     if (RootFrame.CurrentSourcePageType != typeof(SongListPage))
                     {
-                        if (await CheckUnsavedChangesAsync())
-                        {
-                            RootFrame.Navigate(typeof(SongListPage));
-                        }
+                        RootFrame.Navigate(typeof(SongListPage));
                     }
                     break;
                 case "new-song":
-                    if (await CheckUnsavedChangesAsync())
+                    var title = await NewSongDialog.PromptAsync(Content.XamlRoot);
+                    if (title is not null)
                     {
-                        var title = await NewSongDialog.PromptAsync(Content.XamlRoot);
-                        if (title is not null)
-                        {
-                            RootFrame.Navigate(typeof(SongEditorPage), SongDocument.CreateNew(title));
-                        }
+                        OpenSongTab(SongDocument.CreateNew(title));
                     }
                     break;
                 case "settings":
+                    ShowFrameContent();
                     if (RootFrame.CurrentSourcePageType != typeof(SettingsPage))
                     {
-                        if (await CheckUnsavedChangesAsync())
-                        {
-                            RootFrame.Navigate(typeof(SettingsPage));
-                        }
+                        RootFrame.Navigate(typeof(SettingsPage));
                     }
                     break;
             }
         }
 
-        private async System.Threading.Tasks.Task<bool> CheckUnsavedChangesAsync()
+        private void ShowFrameContent()
         {
-            if (RootFrame.Content is SongEditorPage editor && editor.HasPendingChanges)
+            RootFrame.Visibility = Visibility.Visible;
+            EditorTabView.Visibility = Visibility.Collapsed;
+        }
+
+        private void ShowTabContent()
+        {
+            RootFrame.Visibility = Visibility.Collapsed;
+            EditorTabView.Visibility = Visibility.Visible;
+        }
+
+        public void OpenSongTab(SongDocument song)
+        {
+            // Check if this song is already open in a tab (match by FileName + RelativeFolderPath)
+            if (!string.IsNullOrWhiteSpace(song.FileName))
+            {
+                foreach (var existingTab in EditorTabView.TabItems.OfType<TabViewItem>())
+                {
+                    if (existingTab.Tag is SongDocument existingSong
+                        && string.Equals(existingSong.RelativeFilePath, song.RelativeFilePath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        EditorTabView.SelectedItem = existingTab;
+                        ShowTabContent();
+                        return;
+                    }
+                }
+            }
+
+            var frame = new Frame();
+            frame.Navigate(typeof(SongEditorPage), song);
+
+            var tab = new TabViewItem
+            {
+                Header = song.Title ?? "Untitled",
+                Content = frame,
+                Tag = song,
+                IsClosable = true
+            };
+
+            song.PropertyChanged += (s, e) =>
+            {
+                if (e.PropertyName == nameof(SongDocument.Title))
+                {
+                    UpdateTabHeader(tab);
+                }
+            };
+
+            EditorTabView.TabItems.Add(tab);
+            EditorTabView.SelectedItem = tab;
+            ShowTabContent();
+        }
+
+        public void UpdateTabHeader(TabViewItem tab)
+        {
+            if (tab.Tag is SongDocument song)
+            {
+                var title = string.IsNullOrWhiteSpace(song.Title) ? "Untitled" : song.Title;
+                if (tab.Content is Frame frame && frame.Content is SongEditorPage editor && editor.HasPendingChanges)
+                {
+                    title = "● " + title;
+                }
+                tab.Header = title;
+            }
+        }
+
+        public void UpdateCurrentTabDirtyIndicator()
+        {
+            if (EditorTabView.SelectedItem is TabViewItem tab)
+            {
+                UpdateTabHeader(tab);
+            }
+        }
+
+        private async void EditorTabView_TabCloseRequested(TabView sender, TabViewTabCloseRequestedEventArgs args)
+        {
+            if (args.Item is TabViewItem tab)
+            {
+                await CloseTabAsync(tab);
+            }
+        }
+
+        public async System.Threading.Tasks.Task<bool> CloseTabAsync(TabViewItem tab)
+        {
+            if (tab.Content is Frame frame && frame.Content is SongEditorPage editor && editor.HasPendingChanges)
             {
                 var dialog = new ContentDialog
                 {
@@ -178,14 +279,44 @@ namespace Lyrical
                 var result = await dialog.ShowAsync();
                 if (result == ContentDialogResult.Primary)
                 {
-                    editor.TriggerSave();
-                    return true;
+                    await editor.TriggerSaveAsync();
                 }
+                else if (result != ContentDialogResult.Secondary)
+                {
+                    return false; // Cancel
+                }
+            }
 
-                return result == ContentDialogResult.Secondary;
+            EditorTabView.TabItems.Remove(tab);
+
+            if (EditorTabView.TabItems.Count == 0)
+            {
+                ShowFrameContent();
+                if (RootFrame.CurrentSourcePageType != typeof(SongListPage))
+                {
+                    RootFrame.Navigate(typeof(SongListPage));
+                }
+                if (AppNavigationView.MenuItems[0] is NavigationViewItem navItem)
+                {
+                    AppNavigationView.SelectedItem = navItem;
+                }
             }
 
             return true;
+        }
+
+        public async System.Threading.Tasks.Task<bool> CloseCurrentTabAsync()
+        {
+            if (EditorTabView.SelectedItem is TabViewItem tab)
+            {
+                return await CloseTabAsync(tab);
+            }
+            return true;
+        }
+
+        private void EditorTabView_SelectionChanged(object sender, SelectionChangedEventArgs args)
+        {
+            // No-op for now; tab switching is handled by TabView automatically
         }
 
         public async void OpenActivationFile()
@@ -200,12 +331,7 @@ namespace Lyrical
                 var song = await SongStorageService.LoadSongFromFileAsync(file);
                 if (song != null)
                 {
-                    // Navigate to editor with the song
-                    RootFrame.Navigate(typeof(SongEditorPage), song);
-                    if (AppNavigationView.MenuItems.Count > 1 && AppNavigationView.MenuItems[1] is NavigationViewItem item)
-                    {
-                        AppNavigationView.SelectedItem = item;
-                    }
+                    OpenSongTab(song);
                 }
                 FileActivationService.ClearActivationFile();
             }

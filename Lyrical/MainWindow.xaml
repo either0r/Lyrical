@@ -27,6 +27,16 @@
             <NavigationViewItem Content="Settings" Icon="Setting" Tag="settings" />
         </NavigationView.FooterMenuItems>
 
-        <Frame x:Name="RootFrame" />
+        <Grid>
+            <Frame x:Name="RootFrame" />
+            <TabView
+                x:Name="EditorTabView"
+                IsAddTabButtonVisible="False"
+                TabCloseRequested="EditorTabView_TabCloseRequested"
+                SelectionChanged="EditorTabView_SelectionChanged"
+                VerticalAlignment="Stretch"
+                Visibility="Collapsed">
+            </TabView>
+        </Grid>
     </NavigationView>
 </Window>

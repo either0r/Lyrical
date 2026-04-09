@@ -1,9 +1,15 @@
 <Solution>
   <Configurations>
+    <Platform Name="ARM64" />
     <Platform Name="x64" />
+    <Platform Name="x86" />
   </Configurations>
   <Project Path="Lyrical/Lyrical.csproj">
-    <Platform Project="x64" />
+    <BuildType Solution="Debug|ARM64" Project="Production" />
+    <BuildType Solution="Debug|x86" Project="Production" />
+    <Platform Solution="*|ARM64" Project="ARM64" />
+    <Platform Solution="*|x64" Project="x64" />
+    <Platform Solution="*|x86" Project="x86" />
     <Deploy />
   </Project>
 </Solution>

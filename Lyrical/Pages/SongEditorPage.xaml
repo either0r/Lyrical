@@ -12,6 +12,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <StackPanel Spacing="12">
@@ -107,30 +108,7 @@
                 </StackPanel>
             </Grid>
 
-            <Grid ColumnSpacing="12">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-
-                <StackPanel Spacing="2">
-                    <TextBlock
-                        x:Name="SongTitleText"
-                        Style="{StaticResource SubtitleTextBlockStyle}"
-                        Text="Untitled" />
-                    <TextBlock
-                        x:Name="SongLocationText"
-                        Opacity="0.7"
-                        TextWrapping="Wrap" />
-                </StackPanel>
-
-                <TextBlock
-                    x:Name="SongStatusText"
-                    Grid.Column="1"
-                    VerticalAlignment="Center"
-                    Opacity="0.7"
-                    TextWrapping="Wrap" />
-            </Grid>
+            <TextBlock x:Name="SongTitleText" Visibility="Collapsed" />
         </StackPanel>
 
         <Grid Grid.Row="1" ColumnSpacing="0" x:Name="EditorPreviewGrid">
@@ -174,6 +152,26 @@
                     <RichTextBlock x:Name="PreviewRichTextBlock" Grid.Row="1" />
                 </Grid>
             </ScrollViewer>
+        </Grid>
+
+        <Grid Grid.Row="2" ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <TextBlock
+                x:Name="SongLocationText"
+                Opacity="0.7"
+                VerticalAlignment="Center"
+                TextWrapping="Wrap" />
+
+            <TextBlock
+                x:Name="SongStatusText"
+                Grid.Column="1"
+                VerticalAlignment="Center"
+                Opacity="0.7"
+                TextWrapping="Wrap" />
         </Grid>
     </Grid>
 </Page>

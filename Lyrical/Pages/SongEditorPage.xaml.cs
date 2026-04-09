@@ -373,44 +373,12 @@ public sealed partial class SongEditorPage : Page
 
     private void CloseCurrentDocumentButton_Click(object sender, RoutedEventArgs e)
     {
-        BackButton_Click(sender, e);
+        _ = MainWindow.Instance?.CloseCurrentTabAsync();
     }
 
-    private async void BackButton_Click(object sender, RoutedEventArgs e)
+    private void BackButton_Click(object sender, RoutedEventArgs e)
     {
-        if (_hasPendingChanges)
-        {
-            var dialog = new ContentDialog
-            {
-                XamlRoot = XamlRoot,
-                Title = "Unsaved changes",
-                Content = "You have unsaved changes. Save now or discard?",
-                PrimaryButtonText = "Save",
-                SecondaryButtonText = "Discard",
-                CloseButtonText = "Cancel",
-                DefaultButton = ContentDialogButton.Primary
-            };
-
-            var result = await dialog.ShowAsync();
-            if (result == ContentDialogResult.Primary)
-            {
-                await SaveSongAsync();
-                return;
-            }
-
-            if (result != ContentDialogResult.Secondary)
-            {
-                return; // Cancel
-            }
-        }
-
-        if (Frame?.CanGoBack == true)
-        {
-            Frame.GoBack();
-            return;
-        }
-
-        Frame?.Navigate(typeof(SongListPage));
+        _ = MainWindow.Instance?.CloseCurrentTabAsync();
     }
 
     private async System.Threading.Tasks.Task SaveSongAsync(bool showConfirmation = true)
@@ -556,6 +524,12 @@ public sealed partial class SongEditorPage : Page
         var current = EditorTextBox.Text;
         EditorTextBox.Text = current.Insert(selectionStart, text);
         EditorTextBox.SelectionStart = selectionStart + text.Length;
+    }
+
+    private void SetCursorHere()
+    {
+        var selectionStart = EditorTextBox.SelectionStart;
+        
     }
 
     private void UnsubscribeSong()
@@ -782,6 +756,8 @@ public sealed partial class SongEditorPage : Page
                 : string.IsNullOrWhiteSpace(_song.FileName)
                     ? "Not saved yet"
                     : $"Saved { _song.LastModifiedText}";
+
+        MainWindow.Instance?.UpdateCurrentTabDirtyIndicator();
     }
 
     public async System.Threading.Tasks.Task TriggerSaveAsync()
