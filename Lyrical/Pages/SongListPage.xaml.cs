@@ -74,6 +74,11 @@ public sealed partial class SongListPage : Page
         await ReloadLibraryAsync(_selectedFolder.RelativePath);
     }
 
+    public async System.Threading.Tasks.Task RefreshAsync()
+    {
+        await ReloadLibraryAsync(_selectedFolder.RelativePath);
+    }
+
     private async System.Threading.Tasks.Task ReloadLibraryAsync(string? selectedFolderPath = null, string? selectedSongPath = null)
     {
         Songs.Clear();

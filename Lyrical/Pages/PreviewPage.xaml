@@ -69,7 +69,7 @@
                 </Grid.RowDefinitions>
 
                 <ScrollViewer x:Name="ChordDiagramScrollViewer" HorizontalScrollMode="Enabled" HorizontalScrollBarVisibility="Auto" VerticalScrollMode="Disabled" VerticalScrollBarVisibility="Disabled">
-                    <StackPanel x:Name="ChordDiagramPanel" Orientation="Horizontal" Spacing="10" />
+                    <StackPanel x:Name="ChordDiagramPanel" Orientation="Horizontal" Spacing="10" VerticalAlignment="Bottom"/>
                 </ScrollViewer>
 
                 <RichTextBlock x:Name="PreviewRichTextBlock" Grid.Row="1" />

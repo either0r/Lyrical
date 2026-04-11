@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10" xmlns:mp="http://schemas.microsoft.com/appx/2014/phone/manifest" xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10" xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities" xmlns:systemai="http://schemas.microsoft.com/appx/manifest/systemai/windows10" xmlns:uap18="http://schemas.microsoft.com/appx/manifest/uap/windows10/18" IgnorableNamespaces="uap rescap systemai uap18">
-  <Identity Name="either0r.LyricalNotebook" Publisher="CN=0AAF260B-F3D8-4B7E-8941-A94ECFFEF4D9" Version="1.1.9.0" />
+  <Identity Name="either0r.LyricalNotebook" Publisher="CN=0AAF260B-F3D8-4B7E-8941-A94ECFFEF4D9" Version="1.1.10.0" />
   <mp:PhoneIdentity PhoneProductId="39cada2b-26d9-4014-b67c-0896ed138f1f" PhonePublisherId="00000000-0000-0000-0000-000000000000" />
   <Properties>
     <DisplayName>Lyrical Notebook</DisplayName>

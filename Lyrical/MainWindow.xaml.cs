@@ -161,6 +161,10 @@ namespace Lyrical
                     {
                         RootFrame.Navigate(typeof(SongListPage));
                     }
+                    else if (RootFrame.Content is SongListPage songListPage)
+                    {
+                        _ = songListPage.RefreshAsync();
+                    }
                     break;
                 case "new-song":
                     var title = await NewSongDialog.PromptAsync(Content.XamlRoot);
@@ -295,6 +299,10 @@ namespace Lyrical
                 if (RootFrame.CurrentSourcePageType != typeof(SongListPage))
                 {
                     RootFrame.Navigate(typeof(SongListPage));
+                }
+                else if (RootFrame.Content is SongListPage songListPage)
+                {
+                    _ = songListPage.RefreshAsync();
                 }
                 if (AppNavigationView.MenuItems[0] is NavigationViewItem navItem)
                 {

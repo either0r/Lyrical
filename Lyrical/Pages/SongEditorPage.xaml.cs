@@ -211,22 +211,26 @@ public sealed partial class SongEditorPage : Page
 
     private void InsertChorusBlockButton_Click(object sender, RoutedEventArgs e)
     {
-        InsertAtCursor("{soc}\n\n{eoc}");
+        var cursor = EditorTextBox.SelectionStart;
+        InsertAtCursor("{soc}" + cursor + "\n{eoc}");
     }
 
     private void InsertMetadataButton_Click(object sender, RoutedEventArgs e)
     {
-        InsertAtCursor("{subtitle: }\n");
+        var cursor = EditorTextBox.SelectionStart;
+        InsertAtCursor("{subtitle: " + cursor + "}\n");
     }
 
     private void InsertVerseBlockButton_Click(object sender, RoutedEventArgs e)
     {
-        InsertAtCursor("{sov}\n\n{eov}");
+        var cursor = EditorTextBox.SelectionStart;
+        InsertAtCursor("{sov}" + cursor + "\n{eov}");
     }
 
     private void InsertCapoButton_Click(object sender, RoutedEventArgs e)
     {
-        InsertAtCursor("{capo: }\n");
+        var cursor = EditorTextBox.SelectionStart;
+        InsertAtCursor("{capo: " + cursor + "}\n");
     }
 
     private void InsertTabBlockButton_Click(object sender, RoutedEventArgs e)
@@ -731,6 +735,11 @@ public sealed partial class SongEditorPage : Page
             if (directiveName == "key" && !string.IsNullOrWhiteSpace(directiveValue))
             {
                 song.Key = directiveValue;
+            }
+
+            if (directiveName == "x_creator" && !string.IsNullOrWhiteSpace(directiveValue))
+            {
+                song.CreatedBy = directiveValue;
             }
         }
     }
