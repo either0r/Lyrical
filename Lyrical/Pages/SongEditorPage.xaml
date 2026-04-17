@@ -24,46 +24,74 @@
 
                 <Grid ColumnSpacing="12">
                     <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
                     <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="0">
                         <Button Click="BackButton_Click" Style="{ThemeResource SubtleButtonStyle}">
                             <FontIcon Glyph="&#xE72B;"/>
                         </Button>
-                        <Button Click="SaveButton_Click" Style="{ThemeResource SubtleButtonStyle}">
+                        <Button Click="SaveButton_Click" Style="{ThemeResource SubtleButtonStyle}" Margin="0,0,8,0">
                             <FontIcon Glyph="&#xE74E;"/>
                             <Button.KeyboardAccelerators>
                                 <KeyboardAccelerator Modifiers="Control" Key="S"/>
                             </Button.KeyboardAccelerators>
                         </Button>
                     </StackPanel>
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
-                        <Button Style="{ThemeResource SubtleButtonStyle}">
-                            <FontIcon Glyph="&#xE710;"/>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" Margin="12,0,12,0">
+                        <Button Style="{ThemeResource SubtleButtonStyle}" Margin="100,0,100,0">
+                            <FontIcon FontFamily="/Assets/Fonts/Lyrical.ttf#Lyrical" Glyph="&#xF002;"/>
                             <Button.Flyout>
                                 <Flyout Placement="Bottom" x:Name="AddCommandBarFlyout">
                                     <StackPanel>
-                                        <AppBarButton Label="Insert Capo" Click="InsertCapoButton_Click" VerticalAlignment="Center"/>
-                                        <AppBarButton Label="Insert Chorus" Click="InsertChorusBlockButton_Click" VerticalAlignment="Center"/>
-                                        <AppBarButton Label="Insert Verse" Click="InsertVerseBlockButton_Click" VerticalAlignment="Center"/>
-                                        <AppBarButton Label="Insert Tab" Click="InsertTabBlockButton_Click" VerticalAlignment="Center"/>
-                                        <AppBarButton Label="Add More Tabs" Click="InsertMoreTabBlockButton_Click" VerticalAlignment="Center"/>
-                                        <AppBarButton Label="Insert Subtitle" Click="InsertMetadataButton_Click" VerticalAlignment="Center"/>
+                                        <AppBarButton Label="Insert Capo" Click="InsertCapoButton_Click" VerticalAlignment="Center">
+                                            <AppBarButton.Icon>
+                                                <FontIcon FontFamily="/Assets/Fonts/Lyrical.ttf#Lyrical" Glyph="&#xF004;"/>
+                                            </AppBarButton.Icon>
+                                        </AppBarButton>
+                                        <AppBarButton Label="Insert Verse" Click="InsertVerseBlockButton_Click" VerticalAlignment="Center">
+                                            <AppBarButton.Icon>
+                                                <FontIcon FontFamily="/Assets/Fonts/Lyrical.ttf#Lyrical" Glyph="&#xF000;"/>
+                                            </AppBarButton.Icon>
+                                        </AppBarButton>
+                                        <AppBarButton Label="Insert Chorus" Click="InsertChorusBlockButton_Click" VerticalAlignment="Center">
+                                            <AppBarButton.Icon>
+                                                <FontIcon FontFamily="/Assets/Fonts/Lyrical.ttf#Lyrical" Glyph="&#xF003;"/>
+                                            </AppBarButton.Icon>
+                                        </AppBarButton>
+                                        <AppBarButton Label="Insert Bridge" Click="InsertBridgeBlockButton_Click" VerticalAlignment="Center">
+                                            <AppBarButton.Icon>
+                                                <FontIcon FontFamily="/Assets/Fonts/Lyrical.ttf#Lyrical" Glyph="&#xF006;"/>
+                                            </AppBarButton.Icon>
+                                        </AppBarButton>
+                                        <AppBarButton Label="Insert Tab" Click="InsertTabBlockButton_Click" VerticalAlignment="Center">
+                                            <AppBarButton.Icon>
+                                                <FontIcon FontFamily="/Assets/Fonts/Lyrical.ttf#Lyrical" Glyph="&#xF001;"/>
+                                            </AppBarButton.Icon>
+                                        </AppBarButton>
+                                        <AppBarButton Label="Insert More Tabs" Click="InsertMoreTabBlockButton_Click" VerticalAlignment="Center">
+                                            <AppBarButton.Icon>
+                                                <FontIcon FontFamily="/Assets/Fonts/Lyrical.ttf#Lyrical" Glyph="&#xF005;"/>
+                                            </AppBarButton.Icon>
+                                        </AppBarButton>
                                     </StackPanel>
                                 </Flyout>
                             </Button.Flyout>
                         </Button>
+                    </StackPanel>
 
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
                         <AutoSuggestBox
                             x:Name="SimilarSoundSearchBox"
-                            Width="280"
+                            Width="220"
                             PlaceholderText="Search for rhymes..."
                             TextChanged="SimilarSoundSearchBox_TextChanged"
                             QuerySubmitted="SimilarSoundSearchBox_QuerySubmitted" />
                     </StackPanel>
+                      
                     <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
                         <Button Click="SetHelpTextBlock" Style="{ThemeResource SubtleButtonStyle}">
                             <FontIcon Glyph="&#xE897;"/>

@@ -47,6 +47,15 @@
       <PackagePath>\</PackagePath>
     </None>
   </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Assets\Icons\" />
+    <Folder Include="Assets\Fonts\" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Update="Assets\Fonts\Lyrical.ttf">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
 
   <!--
     Defining the "HasPackageAndPublishMenuAddedByProject" property here allows the Solution
