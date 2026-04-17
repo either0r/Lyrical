@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices.WindowsRuntime;
 using Windows.System;
+using Microsoft.UI.Windowing;
 
 namespace Lyrical
 {
@@ -30,6 +31,9 @@ namespace Lyrical
                 root.RequestedTheme = ThemeService.Current;
             }
 
+            ApplyTitleBarTheme(ThemeService.Current);
+            ThemeService.ThemeChanged += OnThemeChanged;
+
             Activated += MainWindow_Activated;
             Closed += MainWindow_Closed;
 
@@ -38,6 +42,21 @@ namespace Lyrical
             {
                 AppNavigationView.SelectedItem = item;
             }
+        }
+
+        private void OnThemeChanged(ElementTheme theme)
+        {
+            ApplyTitleBarTheme(theme);
+        }
+
+        private void ApplyTitleBarTheme(ElementTheme theme)
+        {
+            AppWindow.TitleBar.PreferredTheme = theme switch
+            {
+                ElementTheme.Light => TitleBarTheme.Light,
+                ElementTheme.Dark => TitleBarTheme.Dark,
+                _ => TitleBarTheme.UseDefaultAppMode
+            };
         }
 
         private async void MainWindow_Activated(object sender, WindowActivatedEventArgs args)
@@ -93,7 +112,10 @@ namespace Lyrical
         private async void MainWindow_Closed(object sender, WindowEventArgs args)
         {
             if (_isForceClosing)
+            {
+                ThemeService.ThemeChanged -= OnThemeChanged;
                 return;
+            }
 
             var dirtyEditors = GetAllDirtyEditors();
             if (dirtyEditors.Count > 0)
@@ -130,6 +152,11 @@ namespace Lyrical
                     _isForceClosing = true;
                     this.Close();
                 }
+            }
+
+            if (!args.Handled)
+            {
+                ThemeService.ThemeChanged -= OnThemeChanged;
             }
         }
 

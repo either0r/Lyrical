@@ -39,6 +39,11 @@ public sealed partial class SongEditorPage : Page
 
     private const double MinPaneWidth = 260;
     private const double DefaultEditorFontSize = 16;
+    private const string CursorMarker = "$$";
+    private static readonly HashSet<string> MetadataDirectiveNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "title", "t", "subtitle", "artist", "album", "year", "key", "tempo", "capo", "x_creator"
+    };
 
     public SongEditorPage()
     {
@@ -211,31 +216,93 @@ public sealed partial class SongEditorPage : Page
 
     private void InsertChorusBlockButton_Click(object sender, RoutedEventArgs e)
     {
-        var cursor = EditorTextBox.SelectionStart;
-        InsertAtCursor("{soc}" + cursor + "\n{eoc}");
-    }
-
-    private void InsertMetadataButton_Click(object sender, RoutedEventArgs e)
-    {
-        var cursor = EditorTextBox.SelectionStart;
-        InsertAtCursor("{subtitle: " + cursor + "}\n");
+        EditorTextBox.Focus(FocusState.Programmatic);
+        InsertAtCursorWithCaret("{soc}\n$$\n{eoc}");
     }
 
     private void InsertVerseBlockButton_Click(object sender, RoutedEventArgs e)
     {
-        var cursor = EditorTextBox.SelectionStart;
-        InsertAtCursor("{sov}" + cursor + "\n{eov}");
+        EditorTextBox.Focus(FocusState.Programmatic);
+        InsertAtCursorWithCaret("{sov}\n$$\n{eov}");
+    }
+
+    private void InsertBridgeBlockButton_Click(object sender, RoutedEventArgs e)
+    {
+        EditorTextBox.Focus(FocusState.Programmatic);
+        InsertAtCursorWithCaret("{sob}\n$$\n{eob}");
     }
 
     private void InsertCapoButton_Click(object sender, RoutedEventArgs e)
     {
-        var cursor = EditorTextBox.SelectionStart;
-        InsertAtCursor("{capo: " + cursor + "}\n");
+        EditorTextBox.Focus(FocusState.Programmatic);
+
+        var normalized = (EditorTextBox.Text ?? string.Empty).Replace("\r\n", "\n").Replace('\r', '\n');
+        var lines = normalized.Split('\n').ToList();
+
+        var lastMetadataLineIndex = -1;
+        var sawBodyContent = false;
+
+        for (var i = 0; i < lines.Count; i++)
+        {
+            var trimmed = lines[i].Trim();
+
+            if (string.IsNullOrWhiteSpace(trimmed))
+            {
+                continue;
+            }
+
+            if (IsMetadataDirectiveLine(trimmed) && !sawBodyContent)
+            {
+                lastMetadataLineIndex = i;
+                continue;
+            }
+
+            sawBodyContent = true;
+            if (lastMetadataLineIndex >= 0)
+            {
+                break;
+            }
+        }
+
+        var insertLineIndex = lastMetadataLineIndex >= 0 ? lastMetadataLineIndex + 1 : 0;
+        lines.Insert(insertLineIndex, "{capo: }");
+
+        var updated = string.Join('\n', lines);
+        EditorTextBox.Text = updated;
+
+        var caretIndex = 0;
+        for (var i = 0; i < insertLineIndex; i++)
+        {
+            caretIndex += lines[i].Length + 1;
+        }
+
+        caretIndex += "{capo: ".Length;
+        EditorTextBox.SelectionStart = Math.Min(caretIndex, EditorTextBox.Text.Length);
+    }
+
+    private static bool IsMetadataDirectiveLine(string trimmedLine)
+    {
+        if (!trimmedLine.StartsWith('{') || !trimmedLine.EndsWith('}'))
+        {
+            return false;
+        }
+
+        var inner = trimmedLine[1..^1];
+        var colonIndex = inner.IndexOf(':');
+        if (colonIndex <= 0)
+        {
+            return false;
+        }
+
+        var directiveName = inner[..colonIndex].Trim();
+        return MetadataDirectiveNames.Contains(directiveName);
     }
 
     private void InsertTabBlockButton_Click(object sender, RoutedEventArgs e)
     {
-        InsertAtCursor("{sot}\ne|----------------|\nB|----------------|\nG|----------------|\nD|----------------|\nA|----------------|\nE|----------------|\n{eot}\n");
+        EditorTextBox.Focus(FocusState.Programmatic);
+
+        InsertAtCursor("\n{sot}\ne|----------------|\nB|----------------|\nG|----------------|\nD|----------------|\nA|----------------|\nE|----------------|\n{eot}\n");
     }
 
     private void InsertMoreTabBlockButton_Click(object sender, RoutedEventArgs e)
@@ -530,10 +597,17 @@ public sealed partial class SongEditorPage : Page
         EditorTextBox.SelectionStart = selectionStart + text.Length;
     }
 
-    private void SetCursorHere()
+    private void InsertAtCursorWithCaret(string textWithMarker)
     {
+        var caretOffset = textWithMarker.IndexOf(CursorMarker, StringComparison.Ordinal);
+        var textToInsert = caretOffset >= 0
+            ? textWithMarker.Remove(caretOffset, CursorMarker.Length)
+            : textWithMarker;
+
         var selectionStart = EditorTextBox.SelectionStart;
-        
+        var current = EditorTextBox.Text;
+        EditorTextBox.Text = current.Insert(selectionStart, textToInsert);
+        EditorTextBox.SelectionStart = selectionStart + (caretOffset >= 0 ? caretOffset : textToInsert.Length);
     }
 
     private void UnsubscribeSong()
@@ -780,6 +854,12 @@ public sealed partial class SongEditorPage : Page
     }
 
     public sealed record BackupInfo(string FileName, string Timestamp, int Index);
+
+    private void Button_Click(object sender, RoutedEventArgs e)
+    {
+
+    }
+
     private sealed class DatamuseWordResult
     {
         [JsonPropertyName("word")]

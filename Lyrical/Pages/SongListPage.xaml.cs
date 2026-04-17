@@ -9,6 +9,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Threading;
 using Windows.ApplicationModel.DataTransfer;
 
 namespace Lyrical.Pages;
@@ -62,6 +63,8 @@ public sealed partial class SongListPage : Page
 
     public ObservableCollection<BreadcrumbItem> Breadcrumbs { get; } = [];
 
+    private readonly SemaphoreSlim _reloadLibraryGate = new(1, 1);
+
     public SongListPage()
     {
         InitializeComponent();
@@ -81,16 +84,24 @@ public sealed partial class SongListPage : Page
 
     private async System.Threading.Tasks.Task ReloadLibraryAsync(string? selectedFolderPath = null, string? selectedSongPath = null)
     {
-        Songs.Clear();
-        var loadedSongs = await SongStorageService.LoadSongsAsync();
-        foreach (var song in loadedSongs)
+        await _reloadLibraryGate.WaitAsync();
+        try
         {
-            Songs.Add(song);
-        }
+            Songs.Clear();
+            var loadedSongs = await SongStorageService.LoadSongsAsync();
+            foreach (var song in loadedSongs)
+            {
+                Songs.Add(song);
+            }
 
-        _folderTreeRoot = await SongStorageService.LoadFolderTreeAsync();
-        PopulateFolderTree(selectedFolderPath);
-        ApplySongFilter(selectedSongPath);
+            _folderTreeRoot = await SongStorageService.LoadFolderTreeAsync();
+            PopulateFolderTree(selectedFolderPath);
+            ApplySongFilter(selectedSongPath);
+        }
+        finally
+        {
+            _reloadLibraryGate.Release();
+        }
     }
 
     private void PopulateFolderTree(string? selectedFolderPath)

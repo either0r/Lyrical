@@ -4,6 +4,7 @@ using Lyrical.Services;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 using System;
 using Windows.Graphics;
 using Windows.Storage;
@@ -26,6 +27,9 @@ public sealed class PreviewWindow : Window
     public PreviewWindow(SongDocument song)
     {
         Title = "Song Preview";
+        SystemBackdrop = new MicaBackdrop();
+
+        AppWindow.SetIcon("Assets/StoreLogo.scale-125.ico");
 
         var frame = new Frame();
         Content = frame;
@@ -34,6 +38,8 @@ public sealed class PreviewWindow : Window
         {
             root.RequestedTheme = ThemeService.Current;
         }
+
+        ApplyTitleBarTheme(ThemeService.Current);
 
         frame.Navigate(typeof(PreviewPage), new PreviewNavigationContext
         {
@@ -53,6 +59,18 @@ public sealed class PreviewWindow : Window
         {
             root.RequestedTheme = theme;
         }
+
+        ApplyTitleBarTheme(theme);
+    }
+
+    private void ApplyTitleBarTheme(ElementTheme theme)
+    {
+        AppWindow.TitleBar.PreferredTheme = theme switch
+        {
+            ElementTheme.Light => TitleBarTheme.Light,
+            ElementTheme.Dark => TitleBarTheme.Dark,
+            _ => TitleBarTheme.UseDefaultAppMode
+        };
     }
 
     private void PreviewWindow_Activated(object sender, WindowActivatedEventArgs args)

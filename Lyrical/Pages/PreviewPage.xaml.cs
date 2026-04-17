@@ -16,6 +16,7 @@ public sealed partial class PreviewPage : Page
     private readonly DispatcherTimer _autoScrollTimer = new() { Interval = TimeSpan.FromMilliseconds(30) };
     private double _autoScrollMultiplier = 1.0;
     private bool _isAutoScrolling;
+    private const double DefaultPreviewFontSize = 16;
 
     public PreviewPage()
     {
@@ -39,6 +40,9 @@ public sealed partial class PreviewPage : Page
         }
 
         AutoScrollControlsPanel.Visibility = _closeAction is not null ? Visibility.Visible : Visibility.Collapsed;
+
+        PreviewFontSizeComboBox.SelectedIndex = 2;
+        ApplyPreviewFontSize(DefaultPreviewFontSize);
 
         if (_song is not null)
         {
@@ -175,5 +179,20 @@ public sealed partial class PreviewPage : Page
         }
 
         _song = null;
+    }
+
+    private void PreviewFontSizeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (PreviewFontSizeComboBox.SelectedItem is ComboBoxItem item
+            && item.Tag is string tag
+            && double.TryParse(tag, out var size))
+        {
+            ApplyPreviewFontSize(size);
+        }
+    }
+
+    private void ApplyPreviewFontSize(double size)
+    {
+        PreviewRichTextBlock.FontSize = size;
     }
 }
