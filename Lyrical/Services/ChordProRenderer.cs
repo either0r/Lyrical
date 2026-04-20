@@ -16,8 +16,40 @@ public static partial class ChordProRenderer
     private static readonly Regex TokenRegex = new("\\[(\\*?)([^\\]]+)\\]", RegexOptions.Compiled);
     private static readonly Regex LabelAttrRegex = new("label\\s*=\\s*[\"']([^\"']*)[\"']", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private const string MonospaceFont = "Consolas";
+    private const double DefaultLyricFontSize = 14;
+    private const double HarmonicaBoostSize = 2;
 
-    private enum SectionType { None, Chorus, Verse, Bridge, Tab }
+    private enum SectionType { None, Chorus, Verse, Bridge, Harmonica, Tab }
+
+    private enum HarmonicaBlowNotes
+    {
+        Blow1 = 1, 
+        Blow2 = 2, 
+        Blow3 = 3, 
+        Blow4 = 4, 
+        Blow5 = 5, 
+        Blow6 = 6, 
+        Blow7 = 7, 
+        Blow8 = 8, 
+        Blow9 = 9, 
+        Blow10 = 10
+    }
+
+    
+
+    private enum HarmonicaDrawNotes
+    {
+        Draw1 = -1,
+        Draw2 = -2,
+        Draw3 = -3,
+        Draw4 = -4,
+        Draw5 = -5,
+        Draw6 = -6,
+        Draw7 = -7,
+        Draw8 = -8,
+        Draw9 = -9,
+        Draw10 = -10
+    }
 
     public static void RenderTo(RichTextBlock target, string? chordPro)
     {
@@ -192,6 +224,10 @@ public static partial class ChordProRenderer
                 AddMetaParagraph(target, $"Chords: {value}", 14, FontWeights.Normal);
                 return true;
 
+            case "harmonica":
+                AddMetaParagraph(target, $"Harmonica Key: {value}", 12, FontWeights.Normal);
+                return true;
+
             // ── Meta-data — silent (index/sort only) ──────────────────────────
             case "sorttitle":
             case "sortartist":
@@ -264,6 +300,18 @@ public static partial class ChordProRenderer
 
             case "end_of_tab":
             case "eot":
+                section = SectionType.None;
+                return true;
+
+            // ── Environment: Harmonica ─────────────────────────────────────────
+            case "start_of_harmonica":
+            case "soh":
+                section = SectionType.Harmonica;
+                AddSectionLabelParagraph(target, string.IsNullOrWhiteSpace(label) ? "Harmonica" : "Harmonica " + label, SectionType.Harmonica);
+                return true;
+
+            case "end_of_harmonica":
+            case "eoh":
                 section = SectionType.None;
                 return true;
 
@@ -367,6 +415,7 @@ public static partial class ChordProRenderer
         {
             SectionType.Chorus => Colors.CornflowerBlue,
             SectionType.Bridge => Colors.MediumPurple,
+            SectionType.Harmonica => Colors.Magenta,
             _ => Colors.DarkGray
         };
 
@@ -410,6 +459,15 @@ public static partial class ChordProRenderer
         if (section == SectionType.Tab)
         {
             paragraph.Inlines.Add(CreateMonospaceRun(line, Colors.LightGreen, FontWeights.Normal));
+            target.Blocks.Add(paragraph);
+            return;
+        }
+
+        // Harmonica sections render raw monospace two points larger than lyrics
+        if (section == SectionType.Harmonica)
+        {
+            var harmonicaSize = ResolveLyricBaseFontSize(target) + HarmonicaBoostSize;
+            AddHarmonicaInlines(paragraph, line, harmonicaSize);
             target.Blocks.Add(paragraph);
             return;
         }
@@ -478,6 +536,74 @@ public static partial class ChordProRenderer
         return position;
     }
 
+    private static void AddHarmonicaInlines(Paragraph paragraph, string line, double fontSize)
+    {
+        var i = 0;
+
+        while (i < line.Length)
+        {
+            if ((line[i] == '+' || line[i] == '-' || char.IsDigit(line[i])) && TryReadSignedNumber(line, i, out var tokenLength, out var noteValue))
+            {
+                var noteText = line.Substring(i, tokenLength);
+                var color = noteValue > 0
+                    ? Colors.Aquamarine
+                    : noteValue < 0
+                        ? Colors.Yellow
+                        : Colors.White;
+
+                paragraph.Inlines.Add(CreateMonospaceRun(noteText, color, FontWeights.Normal, fontSize));
+                i += tokenLength;
+                continue;
+            }
+
+            var start = i;
+            i++;
+            while (i < line.Length && !((line[i] == '+' || line[i] == '-' || char.IsDigit(line[i])) && TryReadSignedNumber(line, i, out _, out _)))
+            {
+                i++;
+            }
+
+            paragraph.Inlines.Add(CreateMonospaceRun(line[start..i], Colors.White, FontWeights.Normal, fontSize));
+        }
+    }
+
+    private static bool TryReadSignedNumber(string text, int startIndex, out int length, out int value)
+    {
+        length = 0;
+        value = 0;
+
+        if (startIndex < 0 || startIndex >= text.Length)
+        {
+            return false;
+        }
+
+        var index = startIndex;
+        if (text[index] == '+' || text[index] == '-')
+        {
+            index++;
+        }
+
+        var digitStart = index;
+        while (index < text.Length && char.IsDigit(text[index]))
+        {
+            index++;
+        }
+
+        if (digitStart == index)
+        {
+            return false;
+        }
+
+        var token = text.Substring(startIndex, index - startIndex);
+        if (!int.TryParse(token, out value))
+        {
+            return false;
+        }
+
+        length = token.Length;
+        return true;
+    }
+
     private static void AddChordInlines(Paragraph paragraph, string chordText, IReadOnlyList<PlacedToken> tokens)
     {
         var current = 0;
@@ -524,16 +650,30 @@ public static partial class ChordProRenderer
         };
     }
 
-    private static Run CreateMonospaceRun(string text, Windows.UI.Color color, Windows.UI.Text.FontWeight weight)
+    private static Run CreateMonospaceRun(string text, Windows.UI.Color color, Windows.UI.Text.FontWeight weight, double? fontSize = null)
     {
-        return new Run
+        var run = new Run
         {
             Text = text.Replace(" ", "\u00A0"),
             FontFamily = new FontFamily(MonospaceFont),
             Foreground = new SolidColorBrush(color),
             FontWeight = weight
         };
+
+        if (fontSize is double size)
+        {
+            run.FontSize = size;
+        }
+
+        return run;
+    }
+
+    private static double ResolveLyricBaseFontSize(RichTextBlock target)
+    {
+        return target.FontSize > 0 ? target.FontSize : DefaultLyricFontSize;
     }
 
     private readonly record struct PlacedToken(int Position, string Text, bool IsAnnotation);
 }
+
+

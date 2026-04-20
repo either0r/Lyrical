@@ -3,6 +3,7 @@ using Lyrical.Services;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Navigation;
 using System;
 using System.Collections.Generic;
@@ -11,11 +12,18 @@ using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Windows.System;
 
 namespace Lyrical.Pages;
 
 public sealed partial class SongEditorPage : Page
 {
+    public StandardUICommand UndoCommand { get; } = new(StandardUICommandKind.Undo);
+    public StandardUICommand RedoCommand { get; } = new(StandardUICommandKind.Redo);
+    public StandardUICommand CutCommand { get; } = new(StandardUICommandKind.Cut);
+    public StandardUICommand CopyCommand { get; } = new(StandardUICommandKind.Copy);
+    public StandardUICommand PasteCommand { get; } = new(StandardUICommandKind.Paste);
+    public StandardUICommand SelectAllCommand { get; } = new(StandardUICommandKind.SelectAll);
     private enum ConflictResolution
     {
         Reload,
@@ -40,6 +48,7 @@ public sealed partial class SongEditorPage : Page
     private const double MinPaneWidth = 260;
     private const double DefaultEditorFontSize = 16;
     private const string CursorMarker = "$$";
+    private const string EditorTabSpaces = "    ";
     private static readonly HashSet<string> MetadataDirectiveNames = new(StringComparer.OrdinalIgnoreCase)
     {
         "title", "t", "subtitle", "artist", "album", "year", "key", "tempo", "capo", "x_creator"
@@ -109,6 +118,29 @@ public sealed partial class SongEditorPage : Page
         {
             _autoSaveTimer.Stop();
         }
+    }
+
+    private void EditorTextBox_KeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        if (e.Key != VirtualKey.Tab)
+        {
+            return;
+        }
+
+        e.Handled = true;
+
+        var selectionStart = EditorTextBox.SelectionStart;
+        var selectionLength = EditorTextBox.SelectionLength;
+        var current = EditorTextBox.Text ?? string.Empty;
+
+        if (selectionLength > 0)
+        {
+            current = current.Remove(selectionStart, selectionLength);
+        }
+
+        EditorTextBox.Text = current.Insert(selectionStart, EditorTabSpaces);
+        EditorTextBox.SelectionStart = selectionStart + EditorTabSpaces.Length;
+        EditorTextBox.SelectionLength = 0;
     }
 
     private async void EditorTextBox_LostFocus(object sender, RoutedEventArgs e)
@@ -677,6 +709,134 @@ public sealed partial class SongEditorPage : Page
         HelpTextBlock.Text = text;
     }
 
+    private void DefineNewChordDiagram_Click(object sender, RoutedEventArgs e)
+    {
+        DefineNewChordDiagramButton_Click(sender, e);
+    }
+
+    private async void DefineNewChordDiagramButton_Click(object sender, RoutedEventArgs e)
+    {
+        var chordAtCaret = TryGetChordAtCaret();
+        var existing = !string.IsNullOrWhiteSpace(chordAtCaret)
+            ? CustomChordService.Definitions.FirstOrDefault(d => string.Equals(d.Name, chordAtCaret, StringComparison.OrdinalIgnoreCase))
+            : null;
+
+        var input = new TextBox
+        {
+            PlaceholderText = "{define: C base-fret 1 frets x 3 2 0 1 0}",
+            Text = existing?.RawDirective ?? BuildSuggestedDefine(chordAtCaret)
+        };
+
+        var errorText = new TextBlock
+        {
+            Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SystemFillColorCriticalBrush"],
+            Visibility = Visibility.Collapsed,
+            TextWrapping = TextWrapping.Wrap
+        };
+
+        var dialog = new ContentDialog
+        {
+            XamlRoot = XamlRoot,
+            Title = existing is null ? "Define chord diagram" : $"Edit {existing.Name} diagram",
+            PrimaryButtonText = "Save",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Primary,
+            Content = new StackPanel
+            {
+                Spacing = 8,
+                Children =
+                {
+                    new TextBlock
+                    {
+                        Text = "Use a ChordPro define directive. This updates the same custom chord list used in Settings.",
+                        TextWrapping = TextWrapping.Wrap,
+                        Opacity = 0.8
+                    },
+                    input,
+                    errorText
+                }
+            }
+        };
+
+        dialog.PrimaryButtonClick += (_, args) =>
+        {
+            var raw = input.Text?.Trim() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                errorText.Text = "Please enter a {define: ...} directive.";
+                errorText.Visibility = Visibility.Visible;
+                args.Cancel = true;
+                return;
+            }
+
+            bool success;
+            string error;
+
+            if (existing is not null)
+            {
+                success = CustomChordService.TryUpdate(existing, raw, out error);
+            }
+            else
+            {
+                success = CustomChordService.TryAdd(raw, out error);
+            }
+
+            if (!success)
+            {
+                errorText.Text = error;
+                errorText.Visibility = Visibility.Visible;
+                args.Cancel = true;
+            }
+        };
+
+        if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+        {
+            RefreshPreview();
+        }
+    }
+
+    private string BuildSuggestedDefine(string? chordName)
+    {
+        if (string.IsNullOrWhiteSpace(chordName))
+        {
+            return "{define: ChordName base-fret 1 frets x x x x x x}";
+        }
+
+        return $"{{define: {chordName} base-fret 1 frets x x x x x x}}";
+    }
+
+    private string? TryGetChordAtCaret()
+    {
+        var text = EditorTextBox.Text ?? string.Empty;
+        if (text.Length == 0)
+        {
+            return null;
+        }
+
+        var caret = Math.Clamp(EditorTextBox.SelectionStart, 0, text.Length);
+        var searchIndex = caret > 0 && text[caret - 1] == ']' ? caret - 1 : caret;
+
+        var open = text.LastIndexOf('[', searchIndex);
+        if (open < 0)
+        {
+            return null;
+        }
+
+        var close = text.IndexOf(']', open + 1);
+        if (close < 0 || caret < open || caret > close + 1)
+        {
+            return null;
+        }
+
+        var chord = text.Substring(open + 1, close - open - 1).Trim();
+        if (chord.StartsWith("*", StringComparison.Ordinal))
+        {
+            chord = chord[1..].Trim();
+        }
+
+        return string.IsNullOrWhiteSpace(chord) ? null : chord;
+    }
+
     private async void RestoreBackupButton_Click(object sender, RoutedEventArgs e)
     {
         if (string.IsNullOrWhiteSpace(_song.FileName))
@@ -851,13 +1011,6 @@ public sealed partial class SongEditorPage : Page
     public void TriggerSave()
     {
         SaveSongButton_Click(null!, new RoutedEventArgs());
-    }
-
-    public sealed record BackupInfo(string FileName, string Timestamp, int Index);
-
-    private void Button_Click(object sender, RoutedEventArgs e)
-    {
-
     }
 
     private sealed class DatamuseWordResult

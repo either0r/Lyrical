@@ -11,6 +11,7 @@
 
     <Page.Resources>
         <converters:CreatorToBrushConverter x:Key="CreatorToBrushConverter" />
+        <converters:CreatorToForegroundBrushConverter x:Key="CreatorToForegroundBrushConverter" />
     </Page.Resources>
 
     <Grid Padding="24" RowSpacing="16">
@@ -29,7 +30,7 @@
 
             <TextBlock
                 Grid.Column="0"
-                Text="My Songs"
+                Text="Lyrical Notebook"
                 Style="{StaticResource TitleTextBlockStyle}" />
 
             <Image
@@ -219,10 +220,25 @@
                                                 <RowDefinition Height="Auto" />
                                             </Grid.RowDefinitions>
 
-                                            <TextBlock Text="{x:Bind Title}" Style="{StaticResource BodyStrongTextBlockStyle}" />
-                                            <TextBlock Grid.Row="1" Text="{x:Bind CreatedBy}" Opacity="0.75" />
-                                            <TextBlock Grid.Row="2" Text="{x:Bind LastModifiedText}" Opacity="0.6" />
-                                            <TextBlock Grid.Row="3" Text="{x:Bind FolderDisplayName}" Opacity="0.6" />
+                                            <TextBlock
+                                                Text="{x:Bind Title}"
+                                                Style="{StaticResource BodyStrongTextBlockStyle}"
+                                                Foreground="{Binding CreatedBy, Converter={StaticResource CreatorToForegroundBrushConverter}}" />
+                                            <TextBlock
+                                                Grid.Row="1"
+                                                Text="{x:Bind CreatedBy}"
+                                                Opacity="0.75"
+                                                Foreground="{Binding CreatedBy, Converter={StaticResource CreatorToForegroundBrushConverter}}" />
+                                            <TextBlock
+                                                Grid.Row="2"
+                                                Text="{x:Bind LastModifiedText}"
+                                                Opacity="0.6"
+                                                Foreground="{Binding CreatedBy, Converter={StaticResource CreatorToForegroundBrushConverter}}" />
+                                            <TextBlock
+                                                Grid.Row="3"
+                                                Text="{x:Bind FolderDisplayName}"
+                                                Opacity="0.6"
+                                                Foreground="{Binding CreatedBy, Converter={StaticResource CreatorToForegroundBrushConverter}}" />
                                         </Grid>
 
                                         <StackPanel
@@ -232,16 +248,21 @@
                                             VerticalAlignment="Center">
                                             <Button
                                                 Content="Rename"
+                                                Foreground="{Binding CreatedBy, Converter={StaticResource CreatorToForegroundBrushConverter}}"
                                                 Click="RenameSongButton_Click"
                                                 CommandParameter="{x:Bind}" />
                                             <Button
                                                 Content="Move"
+                                                Foreground="{Binding CreatedBy, Converter={StaticResource CreatorToForegroundBrushConverter}}"
                                                 Click="MoveSongButton_Click"
                                                 CommandParameter="{x:Bind}" />
                                             <Button
+                                                Foreground="{Binding CreatedBy, Converter={StaticResource CreatorToForegroundBrushConverter}}"
                                                 Click="DeleteSongButton_Click"
                                                 CommandParameter="{x:Bind}">
-                                                <SymbolIcon Symbol="Delete" />
+                                                <SymbolIcon
+                                                    Symbol="Delete"
+                                                    Foreground="{Binding CreatedBy, Converter={StaticResource CreatorToForegroundBrushConverter}}" />
                                             </Button>
                                         </StackPanel>
                                     </Grid>
