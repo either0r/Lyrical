@@ -5,12 +5,12 @@ using System;
 
 namespace Lyrical.Converters;
 
-public sealed class CreatorToBrushConverter : IValueConverter
+public sealed class CreatorToForegroundBrushConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, string language)
     {
         var creator = value as string;
-        return new SolidColorBrush(CreatorColorService.ResolveColor(creator));
+        return new SolidColorBrush(CreatorColorService.ResolveTextColor(creator));
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, string language)

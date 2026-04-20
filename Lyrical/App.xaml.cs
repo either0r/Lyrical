@@ -47,9 +47,14 @@ namespace Lyrical
 
             try
             {
+                if (MainAppWindow?.Content is not FrameworkElement root || root.XamlRoot is null)
+                {
+                    return;
+                }
+
                 var dialog = new ContentDialog
                 {
-                    XamlRoot = MainAppWindow?.Content?.XamlRoot,
+                    XamlRoot = root.XamlRoot,
                     Title = "Something went wrong",
                     Content = $"An unexpected error occurred:\n\n{e.Exception?.Message}",
                     CloseButtonText = "OK"

@@ -28,6 +28,7 @@
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
                     <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="0">
@@ -91,8 +92,14 @@
                             TextChanged="SimilarSoundSearchBox_TextChanged"
                             QuerySubmitted="SimilarSoundSearchBox_QuerySubmitted" />
                     </StackPanel>
+
+                    <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="8">
+                        <Button Style="{ThemeResource SubtleButtonStyle}" Click="DefineNewChordDiagram_Click">
+                            <FontIcon FontFamily="/Assets/Fonts/Lyrical.ttf#Lyrical" Glyph="&#xE954;"/>
+                        </Button>
+                    </StackPanel>
                       
-                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                    <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
                         <Button Click="SetHelpTextBlock" Style="{ThemeResource SubtleButtonStyle}">
                             <FontIcon Glyph="&#xE897;"/>
                             <Button.Flyout>
@@ -156,7 +163,34 @@
                 HorizontalAlignment="Stretch"
                 VerticalContentAlignment="Top"
                 TextChanged="EditorTextBox_TextChanged"
-                LostFocus="EditorTextBox_LostFocus" />
+                KeyDown="EditorTextBox_KeyDown"
+                LostFocus="EditorTextBox_LostFocus">
+
+                <TextBox.ContextFlyout>
+                    <MenuFlyout>
+                        <!-- Default edit actions -->
+                        <MenuFlyoutItem Text="Undo" Command="{x:Bind UndoCommand}" />
+                        <MenuFlyoutItem Text="Redo" Command="{x:Bind RedoCommand}" />
+                        <MenuFlyoutSeparator />
+                        <MenuFlyoutItem Text="Cut" Command="{x:Bind CutCommand}" />
+                        <MenuFlyoutItem Text="Copy" Command="{x:Bind CopyCommand}" />
+                        <MenuFlyoutItem Text="Paste" Command="{x:Bind PasteCommand}" />
+                        <MenuFlyoutSeparator />
+                        <MenuFlyoutItem Text="Select All" Command="{x:Bind SelectAllCommand}" />
+
+                        <!-- Custom editor actions -->
+                        <MenuFlyoutSeparator />
+                        <MenuFlyoutItem Text="Insert Verse" Click="InsertVerseBlockButton_Click" />
+                        <MenuFlyoutItem Text="Insert Chorus" Click="InsertChorusBlockButton_Click" />
+                        <MenuFlyoutItem Text="Insert Bridge" Click="InsertBridgeBlockButton_Click" />
+                        <MenuFlyoutItem Text="Insert Tab" Click="InsertTabBlockButton_Click" />
+                        <MenuFlyoutItem Text="Insert More Tabs" Click="InsertMoreTabBlockButton_Click" />
+                        <MenuFlyoutItem Text="Insert Capo" Click="InsertCapoButton_Click" />
+                        <MenuFlyoutSeparator />
+                        <MenuFlyoutItem Text="Define New Chord" Click="DefineNewChordDiagram_Click" />
+                    </MenuFlyout>
+                </TextBox.ContextFlyout>
+            </TextBox>
 
             <Border Grid.Column="1" Background="{ThemeResource CardStrokeColorDefaultBrush}">
                 <primitives:Thumb

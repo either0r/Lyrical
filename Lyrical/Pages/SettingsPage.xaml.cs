@@ -3,11 +3,12 @@ using Lyrical.Services;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Navigation;
 using System;
 using System.Collections.ObjectModel;
 using System.Runtime.InteropServices.WindowsRuntime;
-using Windows.System;
+using Windows.UI;
 
 namespace Lyrical.Pages;
 
@@ -20,7 +21,7 @@ public sealed partial class SettingsPage : Page
     private bool _autoSaveSelectionReady;
     private bool _librarySelectionReady;
     private bool _exportSelectionReady;
-    private bool _updateSelectionReady;
+    private bool _creatorColorSelectionReady;
 
     public SettingsPage()
     {
@@ -31,6 +32,7 @@ public sealed partial class SettingsPage : Page
     {
         base.OnNavigatedTo(e);
         LoadThemeSelection();
+        LoadCreatorColorSelection();
         LoadAutoSaveSettings();
         await LoadLibrarySettingsAsync();
         LoadUpdateSettings();
@@ -68,6 +70,53 @@ public sealed partial class SettingsPage : Page
         {
             ThemeService.Apply(theme);
         }
+    }
+
+    private void LoadCreatorColorSelection()
+    {
+        _creatorColorSelectionReady = false;
+
+        var currentUser = CreatorColorService.GetCurrentUserNameOrUnknown();
+        CreatorColorDescriptionText.Text = $"Change the song card background color for {currentUser}.";
+
+        Color selectedColor;
+        if (CreatorColorService.TryGetCurrentUserOverrideColor(out var overrideColor))
+        {
+            selectedColor = overrideColor;
+        }
+        else
+        {
+            selectedColor = CreatorColorService.ResolveColor(currentUser);
+        }
+
+        CreatorColorPicker.Color = selectedColor;
+        UpdateCreatorColorSwatch(selectedColor);
+
+        _creatorColorSelectionReady = true;
+    }
+
+    private void CreatorColorPicker_ColorChanged(ColorPicker sender, ColorChangedEventArgs args)
+    {
+        var color = Color.FromArgb(255, args.NewColor.R, args.NewColor.G, args.NewColor.B);
+        UpdateCreatorColorSwatch(color);
+
+        if (!_creatorColorSelectionReady)
+        {
+            return;
+        }
+
+        CreatorColorService.SetCurrentUserOverrideColor(color);
+    }
+
+    private void ResetCreatorColorButton_Click(object sender, RoutedEventArgs e)
+    {
+        CreatorColorService.ClearCurrentUserOverrideColor();
+        LoadCreatorColorSelection();
+    }
+
+    private void UpdateCreatorColorSwatch(Color color)
+    {
+        CreatorColorSwatch.Background = new SolidColorBrush(color);
     }
 
     // ── Song library ───────────────────────────────────────────────────────────
@@ -128,67 +177,8 @@ public sealed partial class SettingsPage : Page
 
     private void LoadUpdateSettings()
     {
-        _updateSelectionReady = false;
-
         var version = Windows.ApplicationModel.Package.Current.Id.Version;
         CurrentVersionText.Text = $"Version: {version.Major}.{version.Minor}.{version.Build}";
-
-        UpdateNotificationsCheckBox.IsChecked = UpdateSettingsService.NotificationsEnabled;
-        UpdateCheckStatusText.Text = string.Empty;
-        _updateSelectionReady = true;
-    }
-    
-    private void UpdateNotificationsCheckBox_Changed(object sender, RoutedEventArgs e)
-    {
-        if (!_updateSelectionReady)
-        {
-            return;
-        }
-
-        UpdateSettingsService.NotificationsEnabled = UpdateNotificationsCheckBox.IsChecked == true;
-    }
-
-    private async void CheckForUpdatesNowButton_Click(object sender, RoutedEventArgs e)
-    {
-        UpdateCheckStatusText.Text = "Checking...";
-
-        var check = await AppUpdateService.CheckForUpdateAsync(force: true);
-        if (!check.IsChecked)
-        {
-            UpdateCheckStatusText.Text = "No check performed.";
-            return;
-        }
-
-        if (!string.IsNullOrWhiteSpace(check.Error))
-        {
-            UpdateCheckStatusText.Text = "Unable to check for updates.";
-            return;
-        }
-
-        if (!check.IsUpdateAvailable)
-        {
-            UpdateCheckStatusText.Text = "You are up to date.";
-            return;
-        }
-
-        UpdateCheckStatusText.Text = $"Update {check.LatestVersion} available.";
-
-        var dialog = new ContentDialog
-        {
-            XamlRoot = XamlRoot,
-            Title = "Update available",
-            Content = $"A newer version ({check.LatestVersion}) is available. You are on {check.CurrentVersion}.",
-            PrimaryButtonText = "Open download page",
-            CloseButtonText = "Close"
-        };
-
-        var result = await dialog.ShowAsync();
-        AppUpdateService.MarkVersionNotified(check.LatestVersion);
-
-        if (result == ContentDialogResult.Primary)
-        {
-            _ = await Launcher.LaunchUriAsync(new System.Uri(check.ReleaseUrl));
-        }
     }
 
     // ── Editor auto-save ──────────────────────────────────────────────────────

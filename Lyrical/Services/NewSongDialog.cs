@@ -8,8 +8,13 @@ namespace Lyrical.Services;
 
 public static class NewSongDialog
 {
-    public static async Task<string?> PromptAsync(XamlRoot xamlRoot)
+    public static async Task<string?> PromptAsync(XamlRoot? xamlRoot)
     {
+        if (xamlRoot is null)
+        {
+            return null;
+        }
+
         var input = new TextBox
         {
             PlaceholderText = "Song title",

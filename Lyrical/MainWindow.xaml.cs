@@ -7,7 +7,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices.WindowsRuntime;
-using Windows.System;
 using Microsoft.UI.Windowing;
 
 namespace Lyrical
@@ -16,8 +15,8 @@ namespace Lyrical
     {
         public static MainWindow? Instance { get; private set; }
 
-        private bool _didRunInitialUpdateCheck;
         private bool _isForceClosing;
+        private bool _didRunActivationPrompts;
 
         public MainWindow()
         {
@@ -29,18 +28,69 @@ namespace Lyrical
             if (Content is FrameworkElement root)
             {
                 root.RequestedTheme = ThemeService.Current;
+                root.Loaded += Root_Loaded;
             }
 
             ApplyTitleBarTheme(ThemeService.Current);
             ThemeService.ThemeChanged += OnThemeChanged;
 
-            Activated += MainWindow_Activated;
             Closed += MainWindow_Closed;
 
             RootFrame.Navigate(typeof(SongListPage));
             if (AppNavigationView.MenuItems[0] is NavigationViewItem item)
             {
                 AppNavigationView.SelectedItem = item;
+            }
+        }
+
+        private async void Root_Loaded(object sender, RoutedEventArgs e)
+        {
+            if (_didRunActivationPrompts)
+            {
+                return;
+            }
+
+            if (sender is not FrameworkElement root || root.XamlRoot is null)
+            {
+                return;
+            }
+
+            _didRunActivationPrompts = true;
+            root.Loaded -= Root_Loaded;
+
+            var xamlRoot = root.XamlRoot;
+
+            if (WhatsNewService.ShouldShow())
+            {
+                var whatsNewDialog = new ContentDialog
+                {
+                    XamlRoot = xamlRoot,
+                    Title = $"What's new in {WhatsNewService.CurrentVersion}",
+                    Content = "• New and improved editing flow\n• Settings cleanup and version visibility\n• Ongoing stability improvements",
+                    CloseButtonText = "Got it"
+                };
+
+                await whatsNewDialog.ShowAsync();
+                WhatsNewService.MarkSeen();
+            }
+
+            if (!DesktopShortcutService.HasPrompted && !DesktopShortcutService.ShortcutExists)
+            {
+                DesktopShortcutService.HasPrompted = true;
+
+                var shortcutDialog = new ContentDialog
+                {
+                    XamlRoot = xamlRoot,
+                    Title = "Add desktop shortcut?",
+                    Content = "Would you like to add a Lyrical shortcut to your desktop?",
+                    PrimaryButtonText = "Yes",
+                    CloseButtonText = "No"
+                };
+
+                if (await shortcutDialog.ShowAsync() == ContentDialogResult.Primary)
+                {
+                    DesktopShortcutService.CreateShortcut();
+                }
             }
         }
 
@@ -59,61 +109,15 @@ namespace Lyrical
             };
         }
 
-        private async void MainWindow_Activated(object sender, WindowActivatedEventArgs args)
-        {
-            if (_didRunInitialUpdateCheck)
-            {
-                return;
-            }
-
-            _didRunInitialUpdateCheck = true;
-
-            var check = await AppUpdateService.CheckForUpdateAsync(force: false);
-            if (check.IsChecked && check.IsUpdateAvailable)
-            {
-                var dialog = new ContentDialog
-                {
-                    XamlRoot = Content.XamlRoot,
-                    Title = "Update available",
-                    Content = $"A newer version ({check.LatestVersion}) is available. You are on {check.CurrentVersion}.",
-                    PrimaryButtonText = "Open download page",
-                    CloseButtonText = "Later"
-                };
-
-                var result = await dialog.ShowAsync();
-                AppUpdateService.MarkVersionNotified(check.LatestVersion);
-
-                if (result == ContentDialogResult.Primary)
-                {
-                    _ = await Launcher.LaunchUriAsync(new System.Uri(check.ReleaseUrl));
-                }
-            }
-
-            if (!DesktopShortcutService.HasPrompted && !DesktopShortcutService.ShortcutExists)
-            {
-                DesktopShortcutService.HasPrompted = true;
-
-                var shortcutDialog = new ContentDialog
-                {
-                    XamlRoot = Content.XamlRoot,
-                    Title = "Add desktop shortcut?",
-                    Content = "Would you like to add a Lyrical shortcut to your desktop?",
-                    PrimaryButtonText = "Yes",
-                    CloseButtonText = "No"
-                };
-
-                if (await shortcutDialog.ShowAsync() == ContentDialogResult.Primary)
-                {
-                    DesktopShortcutService.CreateShortcut();
-                }
-            }
-        }
-
         private async void MainWindow_Closed(object sender, WindowEventArgs args)
         {
             if (_isForceClosing)
             {
                 ThemeService.ThemeChanged -= OnThemeChanged;
+                if (Content is FrameworkElement root)
+                {
+                    root.Loaded -= Root_Loaded;
+                }
                 return;
             }
 
@@ -157,6 +161,10 @@ namespace Lyrical
             if (!args.Handled)
             {
                 ThemeService.ThemeChanged -= OnThemeChanged;
+                if (Content is FrameworkElement root)
+                {
+                    root.Loaded -= Root_Loaded;
+                }
             }
         }
 

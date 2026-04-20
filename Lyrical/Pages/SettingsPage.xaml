@@ -41,7 +41,7 @@
                         Text="Appearance"
                         Style="{StaticResource SubtitleTextBlockStyle}" />
                     <TextBlock
-                        Text="Choose how Lyrical looks. System follows your Windows colour mode."
+                        Text="Choose how Lyrical looks. System follows your Windows color mode."
                         Opacity="0.7"
                         TextWrapping="Wrap" />
                     <RadioButtons
@@ -51,6 +51,44 @@
                         <RadioButton Content="Light"  Tag="Light" />
                         <RadioButton Content="Dark"   Tag="Dark" />
                     </RadioButtons>
+
+                    <StackPanel Spacing="8" Margin="0,32,0,0">
+                        <TextBlock Text="Song Card" Style="{ThemeResource BodyLargeTextBlockStyle}" Margin="0,0,0,0"/>
+                        <TextBlock
+                            x:Name="CreatorColorDescriptionText"
+                            Opacity="0.7"
+                            TextWrapping="Wrap" 
+                            Margin="0,0,0,24"/>
+
+                        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <Button Content="Choose a Color">
+                                <Button.Flyout>
+                                    <Flyout Placement="Bottom">
+                                        <ColorPicker
+                                            x:Name="CreatorColorPicker"
+                                            IsAlphaEnabled="False"
+                                            IsMoreButtonVisible="True"
+                                            IsColorChannelTextInputVisible="False"
+                                            ColorChanged="CreatorColorPicker_ColorChanged" />
+                                    </Flyout>
+                                </Button.Flyout>
+                            </Button>
+
+                            <TextBlock Text="Current Color: " VerticalAlignment="Center" Margin="12,0,0,0" Foreground="LightGray" Opacity="0.8"/>
+                            <Border
+                                x:Name="CreatorColorSwatch"
+                                Width="20"
+                                Height="20"
+                                CornerRadius="4"
+                                BorderThickness="1"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                Margin="0,0,24,0"/>
+
+                            <Button
+                                Content="Reset to default"
+                                Click="ResetCreatorColorButton_Click" />
+                        </StackPanel>
+                    </StackPanel>
                 </StackPanel>
             </Border>
             
@@ -176,37 +214,22 @@
 
             <!-- Updates section -->
             <Border
-                Grid.Row="4"
+                Grid.Row="7"
                 BorderBrush="{ThemeResource ControlElevationBorderBrush}"
                 BorderThickness="0,0,0,1">
                 <StackPanel Spacing="8" Margin="0,0,0,24">
                     <TextBlock
-                        Text="Updates"
+                        Text="Version"
                         Style="{StaticResource SubtitleTextBlockStyle}" />
                     <TextBlock
                         x:Name="CurrentVersionText"
                         Opacity="0.7" />
-                    <TextBlock
-                        Text="Get notified when a newer GitHub release is available."
-                        Opacity="0.7"
-                        TextWrapping="Wrap" />
-
-                    <CheckBox
-                        x:Name="UpdateNotificationsCheckBox"
-                        Content="Notify me about new updates"
-                        Checked="UpdateNotificationsCheckBox_Changed"
-                        Unchecked="UpdateNotificationsCheckBox_Changed" />
-
-                    <StackPanel Orientation="Horizontal" Spacing="12">
-                        <Button Content="Check for updates now" Click="CheckForUpdatesNowButton_Click" />
-                        <TextBlock x:Name="UpdateCheckStatusText" VerticalAlignment="Center" Opacity="0.7" TextWrapping="Wrap" />
-                    </StackPanel>
                 </StackPanel>
             </Border>
 
             <!-- Add chord section -->
             <Border
-                Grid.Row="5"
+                Grid.Row="4"
                 BorderBrush="{ThemeResource ControlElevationBorderBrush}"
                 BorderThickness="0,0,0,1">
                 <StackPanel Spacing="8" Margin="0,0,0,24">
@@ -257,7 +280,7 @@
 
             <!-- Chord list -->
             <Border
-                Grid.Row="6"
+                Grid.Row="5"
                 BorderBrush="{ThemeResource ControlElevationBorderBrush}"
                 BorderThickness="0,0,0,1">
                 <ListView
@@ -312,7 +335,7 @@
 
             <!-- Desktop shortcut section -->
             <Border
-                Grid.Row="7"
+                Grid.Row="6"
                 BorderBrush="{ThemeResource ControlElevationBorderBrush}"
                 BorderThickness="0,0,0,1">
                 <StackPanel Spacing="8" Margin="0,0,0,24">
