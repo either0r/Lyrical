@@ -389,6 +389,7 @@ public static class SongStorageService
     private static async Task<bool> SaveSongToFolderAsync(SongDocument song, StorageFolder rootFolder, bool saveAsCopy)
     {
         EnsureCreatorDirective(song);
+        song.ChordPro = CustomChordService.EmbedUsedDefinitions(song.ChordPro);
         ApplyMetadataFromChordPro(song);
         song.RelativeFolderPath = NormalizeRelativeFolderPath(song.RelativeFolderPath);
 
@@ -659,6 +660,8 @@ E|----------------|
 
     private static SongDocument CreateSongFromChordPro(string chordPro)
     {
+        CustomChordService.ImportFromChordPro(chordPro);
+
         var song = SongDocument.CreateNew();
         song.ChordPro = chordPro;
         ApplyMetadataFromChordPro(song);

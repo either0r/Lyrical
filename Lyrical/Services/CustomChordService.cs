@@ -1,5 +1,6 @@
 using Lyrical.Models;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 using Windows.Storage;
 
@@ -71,7 +72,6 @@ public static class CustomChordService
             return false;
         }
 
-        // Remove the original entry, then any collision on the new name
         _definitions.Remove(existing);
         _definitions.RemoveAll(d => string.Equals(d.Name, def.Name, System.StringComparison.OrdinalIgnoreCase));
         _definitions.Add(def);
@@ -99,6 +99,121 @@ public static class CustomChordService
         frets = def.Frets;
         baseFret = def.BaseFret;
         return true;
+    }
+
+    public static void ImportFromChordPro(string? chordPro)
+    {
+        var imported = false;
+
+        foreach (var definition in GetDefinitionsFromChordPro(chordPro))
+        {
+            _definitions.RemoveAll(d => string.Equals(d.Name, definition.Name, System.StringComparison.OrdinalIgnoreCase));
+            _definitions.Add(definition);
+            imported = true;
+        }
+
+        if (imported)
+        {
+            Save();
+        }
+    }
+
+    public static string EmbedUsedDefinitions(string? chordPro)
+    {
+        var normalized = chordPro?.Replace("\r\n", "\n").Replace('\r', '\n') ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            return normalized;
+        }
+
+        var lines = normalized.Split('\n').ToList();
+        var usedChordNames = ChordDiagramRenderer.ExtractChords(normalized);
+        if (usedChordNames.Count == 0)
+        {
+            return normalized;
+        }
+
+        var embeddedDefinitions = GetDefinitionsFromChordPro(normalized)
+            .Select(d => d.Name)
+            .ToHashSet(System.StringComparer.OrdinalIgnoreCase);
+
+        var definitionsToInsert = new List<string>();
+        foreach (var chordName in usedChordNames)
+        {
+            var matchingDefinition = _definitions.FirstOrDefault(d => string.Equals(d.Name, chordName, System.StringComparison.OrdinalIgnoreCase));
+            if (matchingDefinition is null || !embeddedDefinitions.Add(matchingDefinition.Name))
+            {
+                continue;
+            }
+
+            definitionsToInsert.Add(matchingDefinition.RawDirective);
+        }
+
+        if (definitionsToInsert.Count == 0)
+        {
+            return normalized;
+        }
+
+        var insertIndex = 0;
+        while (insertIndex < lines.Count)
+        {
+            var trimmed = lines[insertIndex].Trim();
+            if (string.IsNullOrWhiteSpace(trimmed)
+                || IsDirective(trimmed, "title")
+                || IsDirective(trimmed, "t")
+                || IsDirective(trimmed, "subtitle")
+                || IsDirective(trimmed, "artist")
+                || IsDirective(trimmed, "album")
+                || IsDirective(trimmed, "year")
+                || IsDirective(trimmed, "key")
+                || IsDirective(trimmed, "tempo")
+                || IsDirective(trimmed, "capo")
+                || IsDirective(trimmed, "x_creator"))
+            {
+                insertIndex++;
+                continue;
+            }
+
+            break;
+        }
+
+        lines.InsertRange(insertIndex, definitionsToInsert);
+        return string.Join("\n", lines);
+    }
+
+    private static IEnumerable<CustomChordDefinition> GetDefinitionsFromChordPro(string? chordPro)
+    {
+        var normalized = chordPro?.Replace("\r\n", "\n").Replace('\r', '\n');
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            yield break;
+        }
+
+        foreach (var line in normalized.Split('\n'))
+        {
+            if (CustomChordDefinition.TryParse(line, out var definition))
+            {
+                yield return definition;
+            }
+        }
+    }
+
+    private static bool IsDirective(string line, string directiveName)
+    {
+        if (!line.StartsWith('{') || !line.EndsWith('}'))
+        {
+            return false;
+        }
+
+        var inner = line[1..^1].Trim();
+        var separatorIndex = inner.IndexOf(':');
+        if (separatorIndex <= 0)
+        {
+            return false;
+        }
+
+        var name = inner[..separatorIndex].Trim();
+        return string.Equals(name, directiveName, System.StringComparison.OrdinalIgnoreCase);
     }
 
     private static void Save()
